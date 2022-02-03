@@ -1,8 +1,13 @@
 import serial
 
 class ultrasoundSensor:
-    i2c_bus_num = 1
+    seial_loc = '/dev/ttyUSB'
 
     def __init__(self):
       # init sensor
-      self.bus = smbus2.SMBus(self.i2c_bus_num)
+      self.ser = serial.Serial(self.seial_loc, 9600, 8)
+
+    def read(self):
+      self.ser.flushInput()
+      line = self.ser.readline() # eg "R123"
+      return int(line[0:-1])
