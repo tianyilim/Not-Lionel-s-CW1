@@ -1,5 +1,5 @@
-from rpi_interface.accelerometer import accelerometerSensor
-from rpi_interface.ultrasound import ultrasoundSensor
+from rpi_interface.accelerometer import AccelerometerSensor
+from rpi_interface.ultrasound import UltrasoundSensor
 
 class monitor:
 
@@ -8,10 +8,10 @@ class monitor:
 
   def __init__(self):
     # init accelerometer
-    self.accel = accelerometerSensor()
+    self.accel = AccelerometerSensor()
     self.accel.setRegisters()
     # init ultrasound
-    self.usound = ultrasoundSensor()
+    self.usound = UltrasoundSensor()
     # modes: 0 - free, 1 - filled (monitor for theft)
     self.mode = 0
 
