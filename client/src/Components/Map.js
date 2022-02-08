@@ -1,9 +1,6 @@
-import React from 'react'
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
-
-const containerStyle = {
-  height: '100vh'
-};
+import { useState, React } from 'react'
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { AiOutlineClose } from 'react-icons/ai';
 
 const center = {
   lat: 51.49918363237076,
@@ -16,29 +13,72 @@ function Map() {
     googleMapsApiKey: "AIzaSyDRNQB3_vgwOBfziEHzuLl9fhE4tbbCCEo"
   })
 
-  const [map, setMap] = React.useState(null)
+  const [details, setDetails] = useState(false)
+  const [currentMarker, setCurrentMarker] = useState(null)
+  const [markers, setMarkers] = useState([{
+      id: 0,
+      location: {lat: 51.49918363237076, lng: -0.17634013995995976},
+      total: 20,
+      free: 0,
+      available: false
+    },{
+      id: 1,
+      location: {lat: 51.5, lng: -0.169},
+      total: 30,
+      free: 15,
+      available: true
+  }])
 
-  const onLoad = React.useCallback(function callback(map) {
-    const bounds = new window.google.maps.LatLngBounds();
-    map.fitBounds(bounds);
-    setMap(map)
-  }, [])
+  const containerStyle = {
+    height: details ? '70vh' : '100vh'
+  };
 
-  const onUnmount = React.useCallback(function callback(map) {
-    setMap(null)
-  }, [])
+  const [currentLoc, setCurrentLoc] = useState({ lat: 51.49918363237076, lng: -0.17634013995995976 })
+
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(function(position) {
+      setCurrentLoc({lat:position.coords.latitude, lng:position.coords.longitude})
+    });
+  } else {
+    // might need some error handling
+    console.log("Not Available");
+  }
 
   return isLoaded ? (
-    <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={center}
-        zoom={250}
-        onLoad={onLoad}
-        onUnmount={onUnmount}
-    >
-        { /* Child components, such as markers, info windows, etc. */ }
-        <></>
-    </GoogleMap>
+    <div>
+      <GoogleMap
+          id = "map"
+          mapContainerStyle={containerStyle}
+          center={currentLoc}
+          zoom={15}
+      >
+          { /* Child components, such as markers, info windows, etc. */ }
+          {markers.map((item,index) => {
+            return (
+              <Marker key={index} position={item.location} 
+                icon={item.available ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png" : "https://maps.google.com/mapfiles/ms/icons/red-dot.png"}
+                onClick={ () => {setDetails(true); setCurrentMarker(item);} }
+              />
+            )
+          })}
+          
+      </GoogleMap>
+
+      <div>
+        <AiOutlineClose className='CloseButton' onClick={ () => setDetails(false) } />
+        {(currentMarker != null) ? 
+          <div className='Details'>
+            <br/>
+            Name: <br/>
+            Total locks: {currentMarker.total} <br/>
+            Available locks: {currentMarker.free} <br/>
+          </div>
+        : <></>
+        }
+      </div>
+
+    </div>
+
   ) : <></>
 }
 

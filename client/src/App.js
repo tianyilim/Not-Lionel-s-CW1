@@ -12,10 +12,14 @@ function App() {
 
   return (
     <div>
-      <Header onClick={Sidebar} showSidebar={showSidebar}/>
+      {/* <Header onClick={Sidebar} showSidebar={showSidebar}/>
       <nav className={showSidebar ? 'SidebarActive' : 'Sidebar'}>
-      </nav>
+      </nav> */}
+
+      <Map/>
     </div>
+
+    
   );
 }
 

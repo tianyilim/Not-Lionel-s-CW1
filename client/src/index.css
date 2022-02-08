@@ -56,3 +56,16 @@ code {
   top: 100px;
   transition: 500ms;
 }
+
+.CloseButton {
+  float: right;
+  margin-right: 10px;
+  width: 40px;
+  display: flex;
+}
+
+.Details {
+  display: flex;
+  margin-top: 10px;
+  margin-left: 25px;
+}
