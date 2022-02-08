@@ -1,14 +1,15 @@
-from antigravity import geohash
 import paho.mqtt.client as mqtt
 from socket import gethostname
 from time import sleep
+import json
 
 CLIENT_NAME = "Server_" + gethostname()
 TOPIC = "IC.embedded/GROUP_4/test"
 
 # callback
 def on_message(client, userdata, message):
-    print("message received " ,str(message.payload.decode("utf-8")))
+    payload = json.loads( message.payload.decode("utf-8") )
+    print("message received ", payload)
     print("message topic=",message.topic)
     print("message qos=",message.qos)
     print("message retain flag=",message.retain)
