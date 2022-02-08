@@ -9,19 +9,20 @@ TOPIC = "IC.embedded/GROUP_4/test"
 # callback
 def on_message(client, userdata, message):
     payload = json.loads( message.payload.decode("utf-8") )
+    # decode message string from JSON
     print("message received ", payload)
     print("message topic=",message.topic)
     print("message qos=",message.qos)
     print("message retain flag=",message.retain)
 
-client = mqtt.Client(CLIENT_NAME)
-status = client.connect("localhost",port=1883)
-print(CLIENT_NAME, "connect", mqtt.error_string(status))
+client = mqtt.Client(CLIENT_NAME)                           # Create client object
+status = client.connect("localhost",port=1883)              # Connect to MQTT broker
+print(CLIENT_NAME, "connect", mqtt.error_string(status))    # Error handling
 
 # add client callback
 client.on_message = on_message
 
-# spin
+# loop for certain time
 client.loop_start()
 # Subscribe to a topic
 client.subscribe(TOPIC)
