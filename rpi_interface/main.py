@@ -1,7 +1,7 @@
-from rpi_interface.accelerometer import AccelerometerSensor
-from rpi_interface.ultrasound import UltrasoundSensor
-from rpi_interface.buzzer import Buzzer
-from comms.mqtt_rpi import MessageHandler
+from accelerometer import AccelerometerSensor
+from ultrasound import UltrasoundSensor
+from buzzer import Buzzer
+from .. comms.mqtt_rpi import MessageHandler
 
 from time import sleep
 
@@ -17,6 +17,7 @@ class monitor:
     # init ultrasound
     self.usound = UltrasoundSensor()
     self.buzzer = Buzzer()
+    self.mh = MessageHandler()
     # modes: 0 - free, 1 - filled (monitor for theft)
     """
     States:
@@ -59,6 +60,7 @@ class monitor:
       current_bike_distance = self.collectMeasurements(5)
       if abs(current_bike_distance - self.bike_distance) > self.ultrasound_allowance:
         # Bike removed
+        self.mh.sendMessage(True)
         self.mode = 2
 
   def soundAlarm(self):
@@ -73,7 +75,7 @@ class monitor:
 
 if __name__ == "__main__":
     m = monitor()
-    mh = MessageHandler()
+    
     while True:
       # TODO: Check for MQTT messages
       bikestatus = mh.getBikeStatus()

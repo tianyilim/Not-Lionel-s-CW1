@@ -4,7 +4,7 @@ from colorzero import Color
 class LED:
 
     def __init__(self): #init LED
-        self.led = RGBLED(27, 22, 23, active_high = False)
+        self.led = RGBLED(23, 22, 27, active_high = False)
 
     def turnOff(self): #Turn led off
         self.led.off()

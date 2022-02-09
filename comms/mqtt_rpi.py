@@ -40,6 +40,8 @@ class MessageHandler:
 
   # Returns either bikein [1], bikeout [2], or NULL (no message) [0]
   def getBikeStatus(self):
+    # For now just read from terminal
+    return input("Enter status: 0 - NULL, 1 - bikein, 2 - bikeout")
     pass
     # TODO
 
