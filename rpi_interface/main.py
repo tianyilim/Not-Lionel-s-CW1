@@ -77,7 +77,7 @@ if __name__ == "__main__":
     
     while True:
       # TODO: Check for MQTT messages
-      bikestatus = m.mh.getBikeStatus()
+      bikestatus = input("Enter status: 0 - NULL, 1 - bikein, 2 - bikeout") #m.mh.getBikeStatus()
 
       if m.mode == 0: # No bike
         if bikestatus == 1: # bikein
