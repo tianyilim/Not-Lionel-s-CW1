@@ -16,7 +16,7 @@ class monitor:
     # init ultrasound
     self.usound = UltrasoundSensor()
     self.buzzer = Buzzer()
-    self.mh = MessageHandler()
+    # self.mh = MessageHandler()
     # modes: 0 - free, 1 - filled (monitor for theft)
     """
     States:
