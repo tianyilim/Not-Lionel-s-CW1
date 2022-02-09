@@ -1,5 +1,9 @@
 from rpi_interface.accelerometer import AccelerometerSensor
 from rpi_interface.ultrasound import UltrasoundSensor
+from rpi_interface.buzzer import Buzzer
+from comms.mqtt_rpi import MessageHandler
+
+from time import sleep
 
 class monitor:
 
@@ -12,7 +16,15 @@ class monitor:
     self.accel.setRegisters()
     # init ultrasound
     self.usound = UltrasoundSensor()
+    self.buzzer = Buzzer()
     # modes: 0 - free, 1 - filled (monitor for theft)
+    """
+    States:
+    0 - No bike inserted (free)
+    1 - Bike is inserted
+    2 - Bike wrongfully removed
+    3 - Alarm
+    """
     self.mode = 0
 
   def collectMeasurements(self, num_measurements):
@@ -27,6 +39,7 @@ class monitor:
   def newBike(self):
     if self.mode == 0:
       self.calibrateUltrasound()
+      self.buzzer.play('inserted')
       self.mode = 1
     else:
       # TODO
@@ -34,7 +47,9 @@ class monitor:
   
   def releaseBike(self):
     if self.mode == 1:
+      self.buzzer.play('removed')
       self.bike_distance = 0
+      self.mode = 0
     else:
       # TODO
       print("Error: device already unlocked")
@@ -43,21 +58,47 @@ class monitor:
     if self.mode == 1:
       current_bike_distance = self.collectMeasurements(5)
       if abs(current_bike_distance - self.bike_distance) > self.ultrasound_allowance:
-        # TODO
-        # ALARM
-        pass
+        # Bike removed
+        self.mode = 2
+
+  def soundAlarm(self):
+    self.buzzer.play('alarm')
+    sleep(5)
+    self.buzzer.stop()
+    self.mode = 0
+
 
 
 
 
 if __name__ == "__main__":
     m = monitor()
+    mh = MessageHandler()
     while True:
-      m.monitorBike
       # TODO: Check for MQTT messages
+      bikestatus = mh.getBikeStatus()
+
+      if m.mode == 0: # No bike
+        if bikestatus == 1: # bikein
+          m.newBike()
+
+      elif m.mode == 1: # Bike inside
+        if bikestatus == 2: # bikeout
+          m.releaseBike()
+        else:
+          m.monitorBike()
+
+      elif m.mode == 2: # Bike wrongly removed
+        # TODO: Extension: Get confirmation from server
+        m.mode = 3
+
+      elif m.mode == 3: # Alarm
+        m.soundAlarm()
+
+      
 
       # If new user wants to park bike
-      m.newBike()
+      
 
       # If user wants to release bike
-      m.releaseBike()
+      
