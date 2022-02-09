@@ -1,6 +1,6 @@
 # Implement a simple script for publishing unsecurely
 from datetime import datetime
-from msilib.schema import Class
+# from msilib.schema import Class
 from time import strftime
 import paho.mqtt.client as mqtt
 import json
