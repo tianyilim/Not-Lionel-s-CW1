@@ -19,7 +19,6 @@ with con:
     con.execute(
         """
         CREATE TABLE USERS (
-            --id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             username TEXT PRIMARY KEY NOT NULL,
             password_hash INTEGER NOT NULL
         );
@@ -80,6 +79,7 @@ with con:
         SELECT USERS.username, BICYCLES.bike_model, BICYCLES.bike_serialnum
         FROM 'BICYCLES' 
         INNER JOIN 'USERS' ON BICYCLES.username=USERS.username
+        WHERE USERS.username="joe"
         ORDER BY USERS.username;
         """)
     for row in data:
