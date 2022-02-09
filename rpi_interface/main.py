@@ -1,7 +1,7 @@
 from accelerometer import AccelerometerSensor
 from ultrasound import UltrasoundSensor
 from buzzer import Buzzer
-from .. comms.mqtt_rpi import MessageHandler
+from mqtt_rpi import MessageHandler
 
 from time import sleep
 
