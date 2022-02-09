@@ -15,4 +15,10 @@ class LED:
 
     def startAlarm(self): #Sets LED to blink rapidly
         self.led.blink(on_time=0.1, off_time=0.1, on_color=(1, 0, 0), off_color=(1, 1, 1))
+
+    def noBike(self):
+        self.led.fade(fade_in_time=1, fade_out_time=1, on_color=(0, 1, 0), off_color=(0.25, 1, 0.25), n=None, background=True)
+
+    def hasBike(self):
+        self.led.fade(fade_in_time=1, fade_out_time=1, on_color=(1, 1, 0), off_color=(0.75, 1, 0), n=None, background=True)
     

@@ -2,6 +2,7 @@ from accelerometer import AccelerometerSensor
 from ultrasound import UltrasoundSensor
 from buzzer import Buzzer
 from mqtt_rpi import MessageHandler
+from led import LED
 
 from time import sleep
 
@@ -17,6 +18,8 @@ class monitor:
     self.usound = UltrasoundSensor()
     self.buzzer = Buzzer()
     # self.mh = MessageHandler()
+    self.led = LED()
+    self.led.noBike() # green
     # modes: 0 - free, 1 - filled (monitor for theft)
     """
     States:
@@ -35,11 +38,13 @@ class monitor:
 
   def calibrateUltrasound(self):
     self.bike_distance = self.collectMeasurements(self.num_ultrasound_measurements)
+    print("Bike inserted at ", self.bike_distance, "cm")
 
   def newBike(self):
     if self.mode == 0:
       self.calibrateUltrasound()
       self.buzzer.play('inserted')
+      self.led.hasBike # orange
       self.mode = 1
     else:
       # TODO
@@ -48,6 +53,7 @@ class monitor:
   def releaseBike(self):
     if self.mode == 1:
       self.buzzer.play('removed')
+      self.led.noBike() # green
       self.bike_distance = 0
       self.mode = 0
     else:
@@ -58,12 +64,15 @@ class monitor:
     if self.mode == 1:
       current_bike_distance = self.collectMeasurements(5)
       if abs(current_bike_distance - self.bike_distance) > self.ultrasound_allowance:
+        print("Bike removed! Distance: ", current_bike_distance, "cm")
         # Bike removed
         # self.mh.sendMessage(True)
         self.mode = 2
 
   def soundAlarm(self):
+    print("Error: sounding alarm...")
     self.buzzer.play('alarm')
+    self.led.startAlarm()
     sleep(5)
     self.buzzer.stop()
     self.mode = 0
