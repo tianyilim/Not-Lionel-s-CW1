@@ -13,7 +13,6 @@ class monitor:
   def __init__(self):
     # init accelerometer
     self.accel = AccelerometerSensor()
-    self.accel.setRegisters()
     # init ultrasound
     self.usound = UltrasoundSensor()
     self.buzzer = Buzzer()
@@ -78,7 +77,7 @@ if __name__ == "__main__":
     
     while True:
       # TODO: Check for MQTT messages
-      bikestatus = mh.getBikeStatus()
+      bikestatus = m.mh.getBikeStatus()
 
       if m.mode == 0: # No bike
         if bikestatus == 1: # bikein
