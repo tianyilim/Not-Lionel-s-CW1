@@ -59,7 +59,7 @@ class monitor:
       current_bike_distance = self.collectMeasurements(5)
       if abs(current_bike_distance - self.bike_distance) > self.ultrasound_allowance:
         # Bike removed
-        self.mh.sendMessage(True)
+        # self.mh.sendMessage(True)
         self.mode = 2
 
   def soundAlarm(self):
