@@ -12,60 +12,81 @@ code {
     monospace;
 }
 
-.MenuIcon{
-  background-color: lightblue;
-  width: 50px;
-  height: 50px;
+.MenuBar{
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 10vh;
+  
   display: flex;
-  margin-top: 10px;
-  margin-left: 10px;
-  border-radius: 50%;
+  background-color: white;
+  margin: 0px;
+
+  align-items: center;
 }
 
-.Header{
-  background-color: lightblue;
-  width: 100px;
-  display: flex;
-  transition: 500ms;
-}
-
-.Null{
-  background-color: lightblue;
-  width: 0px;
-  transition: 500ms;
-}
-
-.Sidebar{
-  background-color: lightblue;
-  width: 0px;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  position: sticky;
-  top: 100px;
-  transition: 500ms;
-}
-
-.SidebarActive {
-  background-color: lightblue;
-  width: 100px;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  position: sticky;
-  top: 100px;
-  transition: 500ms;
-}
-
-.CloseButton {
-  float: right;
-  margin-right: 10px;
-  width: 40px;
-  display: flex;
+.MenuBarIcon{
+  width: 33.33333333333333vw;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .Details {
   display: flex;
   margin-top: 10px;
   margin-left: 25px;
+}
+
+.CheckInOut {
+  color: #ffffff;
+  padding: 20px;
+  align-items: center;
+  justify-content: center;
+  font-size: 35px;
+
+  display: flex;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 10vh;
+  
+  border: none;
+  border-radius: 50%;
+  width: 40vh;
+  height: 40vh;
+}
+
+.CheckInButton  {
+  background-color: #04AA6D;
+}
+
+.CheckOutButton {
+  background-color: red;
+}
+
+.SerialKeyText {
+  margin-top: 50px;
+  font-size: 20px;
+}
+
+.CenterText {
+  display: flex;
+  margin-left: auto;
+  margin-right: auto;
+  align-content: center;
+  justify-content: center;
+}
+
+.RegisterForm {
+  background-color: lightgray;
+  border: black;
+
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 15vh;
+  width: 70%
+}
+
+.RegisterInput{
+  width: 100%;
 }
