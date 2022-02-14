@@ -38,9 +38,9 @@ with con:
             lock_cluster_id INTEGER NOT NULL REFERENCES current_usage(lock_cluster_id),
             lock_id INTEGER NOT NULL REFERENCES current_usage(lock_id),
             username TEXT NOT NULL REFERENCES users(username),
-            bike_sn INTEGER NOT NULL REFERENCES bicycles(bike_sn),
+            bike_sn INTEGER REFERENCES bicycles(bike_sn),
             in_time TEXT NOT NULL,
-            stay_duration TEXT NOT NULL,
+            stay_duration TEXT,
             remark INTEGER NOT NULL
         );
         """

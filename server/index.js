@@ -57,7 +57,7 @@ client.on('connect', function () {
     if (!err) {
       // let msg = JSON.stringify({'msg':"hello"})
       // // let msg = Buffer.from(JSON.stringify({'msg':"hello"}), 'utf-8')
-      // client.publish('IC.embedded/GROUP_4/test', msg)
+      // client.publish('ic_embedded_group_4/test', msg)
       console.log("JS Server connected to MQTT Broker")
     }
   })
@@ -132,9 +132,59 @@ var intervalId = setInterval(updateCachedData, 3.6e+6)
 // const message = sha256("123" + "Message")
 // console.log(Base64.stringify(hmacSHA512(message,"Key")))
 
-// SQL code dump
-/*
+// ~ SQL code dump
 
+// ~ The following are SQL inserts, so they are run with `db.run`
+// to be wrapped in a function providing the correct details
+// when a bike checks in, set the variables to the appropriate values
+// when a bike checks out, set the variables to NULL
+let update_current_usage = `UPDATE current_usage 
+                            SET username = ${username}
+                            bike_sn = ${bike_sn}
+                            lock_time = ${lock_time}
+                            expected_departure_time = ${expected_departure_time}
+                            WHERE lock_postcode=${lock_postcode}
+                            AND lock_cluster_id=${lock_cluster_id}
+                            AND lock_id=${lock_id};`
+
+// self explanatory functions
+let checkin_overall_usage = `INSERT INTO overall_usage
+                            (lock_postcode, lock_cluster_id, lock_id, 
+                              username, bike_sn, in_time, remark)
+                            VALUES
+                            (${lock_postcode}, ${lock_cluster_id}, ${lock_id},
+                              ${username}, ${bike_sn}, ${in_time}, 0);`
+
+let checkout_overall_usage = `UPDATE overall_usage
+                              SET stay_duration=${stay_duration}
+                              WHERE lock_postcode=${lock_postcode}
+                              AND lock_cluster_id=${lock_cluster_id}
+                              AND lock_id=${lock_id}
+                              AND in_time=${in_time};`
+
+// to insert a new user
+let new_user = `INSERT INTO users
+                (username, email, password_hashed)
+                VALUES
+                (${username}, ${email}, ${password_hashed});`
+
+// to insert a new bicycle
+let new_bicycle = `INSERT INTO bicycles
+                  (bike_sn, bike_name, username)
+                  VALUES
+                  (${bike_sn}, ${bike_name}, ${username});`
+
+// to remove a bicycle
+let remove_bicycle = `DELETE FROM bicycles WHERE bike_sn=${bike_sn};`
+
+// to remove a user. Remember to remove the user's bicycles too (below)
+let remove_user = `DELETE FROM users WHERE username=${username};`
+// remove all a users's bicycles
+let remove_user_bicycles = `DELETE FROM bicycles WHERE username=${username};`
+
+// ~ The following are SQL queries, so they are run with `db.all()` or `db.get()`
+
+/*
 // check if a corresponding entry has been made on the Overall Usage Table.
 let sql = `SELECT username, remark FROM overall_usage
 WHERE overall_usage.in_time=${payload['timestamp']}
