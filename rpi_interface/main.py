@@ -44,7 +44,7 @@ class monitor:
     if self.mode == 0:
       self.calibrateUltrasound()
       self.buzzer.play('inserted')
-      self.led.hasBike # orange
+      self.led.hasBike() # orange
       self.mode = 1
     else:
       # TODO
@@ -76,6 +76,7 @@ class monitor:
     sleep(5)
     self.buzzer.stop()
     self.mode = 0
+    self.led.noBike()
 
 
 
