@@ -14,8 +14,12 @@ class AccelerometerSensor:
       self.bus.write_byte_data(self.address, 0x20, ctr_reg_1)
 
       #Turn of filters
-      ctr_reg_2 = 0b10000000
+      ctr_reg_2 = 0b10010001
       self.bus.write_byte_data(self.address, 0x21, ctr_reg_2)
+
+      #Send interrupt to INT1
+      ctr_reg_3 = 0b01000001
+      self.bus.write_byte_data(self.address, 0x22, ctr_reg_3)
 
       #Set measurements to non-continuous update (necessary to use thermometer), big endian notation, ±4g measurement range
       ctr_reg_4 = 0b10010000
@@ -24,6 +28,11 @@ class AccelerometerSensor:
       #Enable temperature sensor and ADC
       temp_cfg_reg = 0b11000000
       self.bus.write_byte_data(self.address, 0x1f, temp_cfg_reg)
+
+      #Configure interupt 1
+      int1_cfg_reg = 0b01111111
+      self.bus.write_byte_data(self.address, 0x30, int1_cfg_reg)
+
 
 
     def readTemperature(self):
@@ -43,8 +52,10 @@ class AccelerometerSensor:
 
 
     def readAccelerometer(self):
+      # Read IN1 register
+      return self.bus.read_byte_data(self.address, 0x31)
       #Returns a list of accelerations in the order [x,y,z] (unit = g-force)
-
+      
       #Get data from all acceleration registers
       raw_data = [self.bus.read_byte_data(self.address, 0x28 + i) for i in range(6)]
 
