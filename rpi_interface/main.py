@@ -78,6 +78,12 @@ class monitor:
     self.mode = 0
     self.led.noBike()
 
+  def readSensors(self):
+    acc = self.accel.readAccelerometer()
+    temp = self.accel.readTemperature()
+    print("Temp: ", temp)
+    print("Accel: ", acc)
+
 
 
 
@@ -87,7 +93,9 @@ if __name__ == "__main__":
     
     while True:
       # TODO: Check for MQTT messages
-      bikestatus = int(input("Enter status: 0 - NULL, 1 - bikein, 2 - bikeout")) #m.mh.getBikeStatus()
+      bikestatus = 0 #int(input("Enter status: 0 - NULL, 1 - bikein, 2 - bikeout")) #m.mh.getBikeStatus()
+      m.readSensors()
+
 
       if m.mode == 0: # No bike
         if bikestatus == 1: # bikein
