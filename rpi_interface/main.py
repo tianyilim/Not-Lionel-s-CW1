@@ -81,8 +81,9 @@ class monitor:
   def readSensors(self):
     acc = self.accel.readAccelerometer()
     temp = self.accel.readTemperature()
-    print("Temp: ", temp)
-    print("Accel: ", acc)
+    if acc>64:
+        #print("Temp: ", temp)
+        print("Accel: ", acc)
 
 
 
