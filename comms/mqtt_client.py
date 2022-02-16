@@ -3,7 +3,7 @@ from socket import gethostname
 from time import sleep
 import json
 
-CLIENT_NAME = "Server_" + gethostname()
+CLIENT_NAME = "Client_" + gethostname()
 TOPIC = "ic_embedded_group_4/test"
 
 # callbacks
@@ -32,20 +32,28 @@ def on_message(client, userdata, message):
     reply = json.dumps( { "msg": "received: " + payload["msg"] } )
     client.publish(TOPIC, bytes(reply, 'utf-8'))
 
-server = mqtt.Client(CLIENT_NAME)                           # Create client object
-status = server.connect("localhost",port=8883)              # Connect to MQTT broker
-server.tls_set('./auth/server/m2mqtt_ca.crt')
+client = mqtt.Client(CLIENT_NAME)                           # Create client object
+status = client.connect("localhost",port=8883)              # Connect to MQTT broker
+client.tls_set('./auth/ca/m2mqtt_ca.crt')
 print(CLIENT_NAME, "connect", mqtt.error_string(status))    # Error handling
 
-# add client callback
-server.on_message = on_message
+# add client callbacks
+client.on_message = on_message
+client.on_connect = on_connect
+client.on_disconnect = on_disconnect
+client.on_log = on_log
 
-# loop for certain time
-server.loop_start()
-# Subscribe to a topic
-server.subscribe(TOPIC)
-print(CLIENT_NAME, "subscribed to", TOPIC)
+conn_flag = False
+while not conn_flag:
+    sleep(2)
+    print("Waiting for connection...")
+    client.loop()
 
-sleep(10)
-server.loop_stop()
-server.disconnect()
+sleep(2)
+print("Client Publishing")
+msg = { "payload" : "Hello world!" }
+msg = bytes(json.dumps(msg), 'utf-8')
+client.publish(TOPIC, "test123")
+sleep(2)
+client.loop()
+client.disconnect()
