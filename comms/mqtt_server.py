@@ -1,4 +1,5 @@
 import paho.mqtt.client as mqtt
+import ssl
 from socket import gethostname
 from time import sleep
 import json
@@ -10,11 +11,11 @@ TOPIC = "ic_embedded_group_4/test"
 def on_connect(client, userdata, flags, rc):
     global conn_flag
     conn_flag = True
-    print("Client Connected", conn_flag)
+    print("Client Connected with flag", rc)
     conn_flag = True
 
-def on_disconnect(client, userdata, flags, rc):
-    print("Client Disconnected")
+def on_disconnect(client, userdata, rc):
+    print("Client Disconnected with flag", rc)
 
 def on_log(client, userdata, level, buf):
     print("["+level+"]", buf)
@@ -33,8 +34,8 @@ def on_message(client, userdata, message):
     client.publish(TOPIC, bytes(reply, 'utf-8'))
 
 server = mqtt.Client(CLIENT_NAME)                           # Create client object
-status = server.connect("localhost",port=8883)              # Connect to MQTT broker
-server.tls_set('./auth/server/m2mqtt_ca.crt')
+status = server.connect('localhost', port=8883)              # Connect to MQTT broker
+server.tls_set(ca_certs='./auth/ca/ca.crt', certfile='./auth/client/client.crt', keyfile='./auth/client/client.key', tls_version=ssl.PROTOCOL_TLSv1_2)
 print(CLIENT_NAME, "connect", mqtt.error_string(status))    # Error handling
 
 # add client callback

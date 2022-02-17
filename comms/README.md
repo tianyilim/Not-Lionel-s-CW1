@@ -49,28 +49,35 @@ sudo -y yum install mosquitto
    4. A `.key` file will be generated with both a private and public key.
 2. Create a **CA Certificate** and sign it with the CA Private Key from (1)
    1. `openssl req -new -x509 -days 3650 -key m2mqtt_ca.key -out m2mqtt_ca.crt`
-   2. Country Name (2 letter code) [AU]:GB
-   3. State or Province Name (full name) [Some-State]:London
-   4. Locality Name (eg, city) []:London
-   5. Organization Name (eg, company) [Internet Widgits Pty Ltd]:Imperial College
-   6. Organizational Unit Name (eg, section) []:Embedded Systems
-   7. Common Name (e.g. server FQDN or YOUR name) []:Tianyi
-   8. Email Address []:0.tianyi.lim@gmail.com
+   ```
+   Country Name (2 letter code) [AU]:GB
+   Country Name (2 letter code) [AU]:GB
+   State or Province Name (full name) [Some-State]:London
+   Locality Name (eg, city) []:London
+   Organization Name (eg, company) [Internet Widgits Pty Ltd]:Imperial College
+   Organizational Unit Name (eg, section) []:Embedded Systems
+   Common Name (e.g. server FQDN or YOUR name) []:CA
+   Email Address []:.
+   ```
 3. Create the **Broker Key Pair**
    1. `openssl genrsa -out m2mqtt_srv.key 2048`
    2. Not using the `-des3` flag here, as a password would need to be entered when the broker is started.
 4. Create a **CA Certificate Sign Request** using the Broker Key from (3)
    1. `openssl req -new -out m2mqtt_srv.csr -key m2mqtt_srv.key`
+   ```
+   Country Name (2 letter code) [XX]:GB
+   State or Province Name (full name) []:London
+   Locality Name (eg, city) [Default City]:London
+   Organization Name (eg, company) [Default Company Ltd]:Imperial College
+   Organizational Unit Name (eg, section) []:Embedded Systems
+   Common Name (eg, your name or your server's hostname) []:Broker
+   Email Address []:.
+   Please enter the following 'extra' attributes to be sent with your certificate request
+    A challenge password []:ic_embedded_cw1
+    An optional company name []:.
+   ```
 5. Use the **CA Certificate** from (2) to sign the request from (4) to get the broker certificate
    1. `openssl x509 -req -in m2mqtt_srv.csr -CA m2mqtt_ca.crt -CAkey m2mqtt_ca.key -CAcreateserial -out m2mqtt_srv.crt -days 3650`
-   2. Country Name (2 letter code) [XX]:GB
-   3. State or Province Name (full name) []:London
-   4. Locality Name (eg, city) [Default City]:London
-   5. Organization Name (eg, company) [Default Company Ltd]:Imperial College
-   6. Organizational Unit Name (eg, section) []:Embedded SystemsCommon Name (eg, your name or your server's hostname) []:TianyiEmail Address []:0.tianyi.lim@gmail.com
-   7. Please enter the following 'extra' attributes to be sent with your certificate request
-   8. A challenge password []:ic_embedded_cw1
-   9. An optional company name []:.
 - At the end of this, the following files should have been created:
   - `m2mqtt_ca.crt`  : CA Certificate
   - `m2mqtt_ca.key`  : CA key pair (private, public)
