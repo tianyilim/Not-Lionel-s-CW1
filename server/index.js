@@ -4,7 +4,7 @@ const express = require("express");
 const react = express();
 react.use(express.json());
 react.listen(3001, () => console.log("listening at port 3000"));
-react.use(express.static("../client"));
+// react.use(express.static("../client"));
 
 // TCP socket
 var net = require('net');

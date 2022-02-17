@@ -60,8 +60,12 @@ code {
   background-color: #04AA6D;
 }
 
-.CheckOutButton {
+.CheckOutButton  {
   background-color: red;
+}
+
+.CheckedButton {
+  background-color: #7db9a3;
 }
 
 .SerialKeyText {
