@@ -17,7 +17,7 @@ class monitor:
     # init ultrasound
     self.usound = UltrasoundSensor()
     self.buzzer = Buzzer()
-    # self.mh = MessageHandler()
+    self.mh = MessageHandler()
     self.led = LED()
     self.led.noBike() # green
     # modes: 0 - free, 1 - filled (monitor for theft)
@@ -44,7 +44,7 @@ class monitor:
     if self.mode == 0:
       self.calibrateUltrasound()
       self.buzzer.play('inserted')
-      self.led.hasBike # orange
+      self.led.hasBike() # orange
       self.mode = 1
     else:
       # TODO
@@ -66,7 +66,7 @@ class monitor:
       if abs(current_bike_distance - self.bike_distance) > self.ultrasound_allowance:
         print("Bike removed! Distance: ", current_bike_distance, "cm")
         # Bike removed
-        # self.mh.sendMessage(True)
+        self.mh.sendMessage(True)
         self.mode = 2
 
   def soundAlarm(self):
@@ -76,6 +76,14 @@ class monitor:
     sleep(5)
     self.buzzer.stop()
     self.mode = 0
+    self.led.noBike()
+
+  def readSensors(self):
+    acc = self.accel.readAccelerometer()
+    temp = self.accel.readTemperature()
+    if acc>64:
+        #print("Temp: ", temp)
+        print("Accel: ", acc)
 
 
 
@@ -86,7 +94,11 @@ if __name__ == "__main__":
     
     while True:
       # TODO: Check for MQTT messages
-      bikestatus = int(input("Enter status: 0 - NULL, 1 - bikein, 2 - bikeout")) #m.mh.getBikeStatus()
+      # bikestatus = int(input("Enter status: 0 - NULL, 1 - bikein, 2 - bikeout")) #m.mh.getBikeStatus()
+      sleep(0.1)
+      bikestatus = m.mh.getBikeStatus()
+      # m.readSensors()
+
 
       if m.mode == 0: # No bike
         if bikestatus == 1: # bikein

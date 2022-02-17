@@ -25,6 +25,7 @@ class MessageHandler:
         print(mqtt.error_string(status))                            # error handling
         self.client.subscribe(BASE_TOPIC+"/status")                 # sub to incoming messages
         self.client.on_message = self.__checkin_callback            # bind callback to checkin
+        self.latestMsg= 0
 
         self.start()    # start to react to incoming messages on the defined topic
 
@@ -71,10 +72,9 @@ class MessageHandler:
     
   # Returns either bikein [1], bikeout [2], or NULL (no message) [0]
     def getBikeStatus(self):
-        # For now just read from terminal
-        return input("Enter status: 0 - NULL, 1 - bikein, 2 - bikeout")
-        pass
-        # TODO
+        status = self.latestMsg
+        self.latestMsg = 0
+        return status
 
     def __checkin_callback(self, client, userdata, message):
         """Function to bind to checkin function
@@ -88,9 +88,11 @@ class MessageHandler:
         if (inout == "in"):
             # TODO hardware things for checking in
             print("Lock checked in!")
+            self.latestMsg = 1
         elif (inout == "out"):
             # TODO hardware things for checking out
             print("Lock checked out!")
+            self.latestMsg = 2
         else:
             assert False, "Lock received an invalid value on /status[in_out]: {}".format(inout)
 
