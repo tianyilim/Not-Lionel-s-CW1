@@ -1,4 +1,4 @@
-const state = false;
+var state = false;
 
 const mqtt = require('mqtt');
 
@@ -34,6 +34,8 @@ client.on('message', function (topic, message) {
     // TODO
     state = true;
 
+    console.log("Received message from lock/out");
+
 })
 
 const moment = require('moment');
@@ -41,17 +43,28 @@ const moment = require('moment');
 // send check in msg via mqtt when user check in
 const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id) => {
     const topic = 'ic_embedded_group_4/' + lock_postcode + '/' + lock_cluster_id + '/' + lock_id + '/checkin';
-    const message = moment().format('YYYY-MM-DD HH:mm:ss');
+    console.log(topic);
+    const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
+    const message = Buffer.from(JSON.stringify({
+        "timestamp": timestamp,
+        "username": "token",
+        "bike_sn": "",
+    }));
     
     client.publish(topic, message);
+    console.log("MQTT Check In Message sent");
 }
 
 // send check out msg via mqtt when user check out
 const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
     const topic = 'ic_embedded_group_4/' + lock_postcode + '/' + lock_cluster_id + '/' + lock_id + '/checkout';
-    const message = moment().format('YYYY-MM-DD HH:mm:ss');
+    const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
+    const message = Buffer.from(JSON.stringify({
+        "timestamp": timestamp,
+    }));
     
     client.publish(topic, message);
+    console.log("MQTT Check Out Message Send")
 }
 
 const express = require("express");
@@ -59,7 +72,7 @@ const app = express();
 const cors = require('cors')
 app.use(express.json());
 app.use(cors());
-app.listen(5000, () => console.log("listening at port 5000"));
+app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
 
 // listen for check in
 app.post('/checkin',(request,response) => {
@@ -74,6 +87,16 @@ app.post('/usrauthen',(request,response) => {
     var tmp = request.body;
     // check does the username matches
     response.json({
-        state: true, // state is tmp
+        state: state, // state is tmp
     });
+})
+
+// listen for check out
+app.post('/checkout',(request,response) => {
+    var tmp = request.body;
+    // serial key should be stored in the server
+    mqtt_checkout(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id);
+    state = false;
+
+    response.json("Checkout Received");
 })

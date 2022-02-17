@@ -73,6 +73,12 @@ code {
   font-size: 20px;
 }
 
+.SerialKey {
+  display: flex;
+  width: 25vw;
+  margin: 2px;
+}
+
 .CenterText {
   display: flex;
   margin-left: auto;

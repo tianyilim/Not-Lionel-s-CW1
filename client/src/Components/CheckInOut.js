@@ -6,9 +6,9 @@ function CheckInOut() {
     const CheckIn = () => {
         // hardcoded lock info rn
         const msg = {
-            lock_postcode: 'SW72AZ',
-            lock_cluster_id: 1, 
-            lock_id: 1,
+            lock_postcode: tmpSerialKeyPostCode,
+            lock_cluster_id: tmpSerialKeyCluster, 
+            lock_id: tmpSerialKeyID,
         }
 
         fetch('http://localhost:5000/checkin',{
@@ -23,6 +23,9 @@ function CheckInOut() {
     const CheckOut = () => {
         // hardcoded lock info rn
         const msg = {
+            lock_postcode: serialKey.PostCode,
+            lock_cluster_id: serialKey.Cluster, 
+            lock_id: serialKey.ID,
             user: 'token'
         }
 
@@ -36,26 +39,60 @@ function CheckInOut() {
     }
 
     const ButtonOnClick = () => {
-        // if (checked) CheckOut();
-        //     else CheckIn();
-        if (!checked) CheckIn();
+        if (!checked) {
+            if (tmpSerialKeyPostCode === '' || tmpSerialKeyCluster === '' || tmpSerialKeyID === '') return;
+
+            if (tmpSerialKeyPostCode.split(' ').length !== 1) {
+                alert("Please remove whitespaces in Postcode");
+                return;
+            }
+
+            CheckIn();
+            setSerialKey({
+                PostCode: tmpSerialKeyPostCode,
+                Cluster: tmpSerialKeyCluster,
+                ID: tmpSerialKeyID
+            });
+        }
+
         else if (auth) {
             CheckOut();
             setAuth(false);
+            setSerialKey({
+                PostCode: '',
+                Cluster: '',
+                ID: ''
+            });
         }
 
         setChecked(!checked);
-        setSerialKey(tmpSerialKey);
+        
     }
 
-    const InputSubmit = () => {};
-    const InputOnChange = (event) => {
-        // check if event.target.value meets the serial key format
-        setTmpSerialKey(event.target.value);
-    };
-    const [serialKey, setSerialKey] = useState('');
-    const [tmpSerialKey, setTmpSerialKey] = useState('')
+    // Serial Key should be stored in the server
+    const [serialKey, setSerialKey] = useState({
+        PostCode: '',
+        Cluster: '',
+        ID: ''
+    });
+    const [tmpSerialKeyPostCode, setTmpSerialKeyPostCode] = useState('')
+    const [tmpSerialKeyCluster, setTmpSerialKeyCluster] = useState('')
+    const [tmpSerialKeyID, setTmpSerialKeyID] = useState('')
 
+    const InputSubmit = () => {};
+    const InputOnChangePostCode = (event) => {
+        // check if event.target.value meets the serial key format
+        setTmpSerialKeyPostCode(event.target.value);
+    };
+    const InputOnChangeCluster = (event) => {
+        // check if event.target.value meets the serial key format
+        setTmpSerialKeyCluster(event.target.value);
+    };
+    const InputOnChangeID = (event) => {
+        // check if event.target.value meets the serial key format
+        setTmpSerialKeyID(event.target.value);
+    };
+    
     // keep checking for udpates to see is user authentication needed
     const [auth,setAuth] = useState(false);
     const update = async() => {
@@ -71,7 +108,6 @@ function CheckInOut() {
         }).then(response => response.json())
         .then(response => {
             setAuth(response.state);
-            console.log(response.state);
         })
     }
 
@@ -85,13 +121,34 @@ function CheckInOut() {
         <div>
             <form onSubmit={InputSubmit} className='CenterText SerialKeyText'>
                 <label>
-                    Serial Key:
-                    <input 
-                        type='text' onChange={InputOnChange}
-                        placeholder={checked ? serialKey : ''}
-                        disabled={checked ? true : false }
-                        style={{fontSize:'20px'}}
-                    />
+                    Serial Key: <br/>
+                    <div
+                        style={{display: 'flex'}}
+                    >
+                        <input 
+                            className='SerialKey'
+                            type='text' onChange={InputOnChangePostCode}
+                            placeholder={checked ? serialKey.PostCode : 'Postcode'}
+                            disabled={checked ? true : false }
+                            style={{fontSize:'20px'}}
+                        />
+                        -
+                        <input 
+                            className='SerialKey'
+                            type='text' onChange={InputOnChangeCluster}
+                            placeholder={checked ? serialKey.Cluster : 'Cluster ID'}
+                            disabled={checked ? true : false }
+                            style={{fontSize:'20px'}}
+                        />
+                        -
+                        <input 
+                            className='SerialKey'
+                            type='text' onChange={InputOnChangeID}
+                            placeholder={checked ? serialKey.ID : 'ID'}
+                            disabled={checked ? true : false }
+                            style={{fontSize:'20px'}}
+                        />
+                    </div>
                 </label>
             </form>
 
