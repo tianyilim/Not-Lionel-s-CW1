@@ -18,6 +18,9 @@ BROKER_PORT = 1883
 # SQL parameters
 DB_PATH = "../db/es_cw1.db"
 
+# used for grace period checking in between
+USER_CHECKIN_GRACE = 5
+
 # callbacks
 def on_connect(client, userdata, flags, rc):
     global conn_flag
@@ -41,7 +44,7 @@ def on_message(client, userdata, message):
 
     # decode message string from JSON
     print("Message received", payload)
-    print("Message topics",subtopics)
+    print("Message topics", subtopics)
 
     # connect to db
     con = sl.connect(DB_PATH)
@@ -58,9 +61,9 @@ def on_message(client, userdata, message):
     print("Fetched", state, "from DB")
 
     sql_update_curr_usage_param = {
-        'occupied': False,
-        'lock_time': None,
-        'expected_departure_time': 'NULL',
+        'occupied': state['occupied'],
+        'lock_time': state['lock_time'],
+        'expected_departure_time': None,
         'username': state['username'],
         'bike_sn': state['bike_sn']
     }
@@ -84,11 +87,11 @@ def on_message(client, userdata, message):
         elif state['username'] and state['lock_time'] and not state['occupied']:
             # State B, after user has manually checked in
             print(subtopics[1], subtopics[2], subtopics[3], "State B->D at time", payload['timestamp'])
+            # TODO implement this
         
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            to_update_curr_usage = False
             assert False, 'RPi \'In\' response error state'
         
     elif subtopics[4] == 'out':
@@ -110,7 +113,6 @@ def on_message(client, userdata, message):
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            to_update_curr_usage = False
             assert False, 'RPi \'Out\' response error state'
 
     elif subtopics[4] == 'checkin':
@@ -123,29 +125,43 @@ def on_message(client, userdata, message):
             # State C, anonymous user has inserted a bike
 
             # check timestamps if they match
-            timestamp_match = True
+            time_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
+            time_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
+            time_duration = time_end - time_start
+
+            # define check in grace period as 5 minutes
+            timestamp_match = time_duration.total_seconds() < 60*USER_CHECKIN_GRACE
             if timestamp_match:
                 # Timestamps match, further update the usage table
                 print(subtopics[1], subtopics[2], subtopics[3], "State C->D at time", payload['timestamp'])
+                if 'username' in payload:
+                    sql_update_curr_usage_param['username'] = payload['username'] \
+                        if payload['username'] != '' else None
+                if 'bike_sn' in payload:
+                    sql_update_curr_usage_param['bike_sn'] = payload['bike_sn'] \
+                        if payload['bike_sn'] != '' else None
+                to_update_curr_usage = True
             else:
-                # Timestamps don't match, user association fails
+                # Timestamps don't match, user association fails, db not updated.
                 print(subtopics[1], subtopics[2], subtopics[3], "State C->C at time", payload['timestamp'])
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            to_update_curr_usage = False
             assert False, 'Client \'Checkin\' response error state'
 
     elif subtopics[4] == 'checkout':
         # Event 4 - User checks out from JS
         if state['username'] and not state['lock_time'] and not state['occupied']:
             # State E, the checkout state
-            print(subtopics[1], subtopics[2], subtopics[3], "State E->A at time", payload['timestamp'])
             # TODO trigger checkout event
+            print(subtopics[1], subtopics[2], subtopics[3], "State E->A at time", payload['timestamp'])
+            # clear the username
+            sql_update_curr_usage_param['username'] = None
+            to_update_curr_usage = True
+            
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            to_update_curr_usage = False
             assert False, 'Client \'Checkout\' response error state'
 
     elif subtopics[4] == 'stolen':
@@ -174,9 +190,12 @@ def on_message(client, userdata, message):
             sql_update_curr_usage_param['occupied'],
             'NULL' if not sql_update_curr_usage_param['lock_time'] 
                 else "\'"+sql_update_curr_usage_param['lock_time']+"\'",    # add quotes only around string
-            sql_update_curr_usage_param['expected_departure_time'],
-            'NULL' if sql_update_curr_usage_param['username'] is None else "\'"+sql_update_curr_usage_param['username']+"\'",
-            'NULL' if sql_update_curr_usage_param['bike_sn'] is None else "\'"+sql_update_curr_usage_param['bike_sn']+"\'",
+            'NULL' if sql_update_curr_usage_param['expected_departure_time'] is None 
+                else "\'"+sql_update_curr_usage_param['expected_departure_time']+"\'",
+            'NULL' if sql_update_curr_usage_param['username'] is None 
+                else "\'"+sql_update_curr_usage_param['username']+"\'",
+            'NULL' if sql_update_curr_usage_param['bike_sn'] is None 
+                else "\'"+sql_update_curr_usage_param['bike_sn']+"\'",
             subtopics[1],
             subtopics[2],
             subtopics[3]
@@ -188,7 +207,6 @@ def on_message(client, userdata, message):
         print("Updated current_usage table.")
 
     if to_insert_overall_usage:
-
         # calculate stay duration by comparing times
         stay_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
         stay_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
