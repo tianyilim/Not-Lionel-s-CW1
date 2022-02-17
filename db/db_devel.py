@@ -20,6 +20,7 @@ with con:
             lock_postcode TEXT NOT NULL,
             lock_cluster_id INTEGER NOT NULL,
             lock_id INTEGER NOT NULL,
+            occupied INTEGER NOT NULL,
             username TEXT REFERENCES users(username),
             bike_sn INTEGER REFERENCES bicycles(bike_sn),
             lock_time TEXT,
@@ -68,6 +69,23 @@ with con:
         """
     )
     print("created bicycle table")
+
+# initialize database with some locks
+sql = """
+        INSERT INTO 'current_usage' (lock_postcode, lock_cluster_id, lock_id, occupied) 
+        VALUES (?, ?, ?, ?);
+"""
+data = [
+    ("SW72AZ", "1", "1", '0'),
+    ("SW72AZ", "1", "2", '0'),
+    ("SW72AZ", "1", "3", '0'),
+    ("SW72AZ", "2", "1", '0'),
+    ("SW72AZ", "2", "2", '0'),
+    ("W68EL", "1", "1", '0'),
+]
+
+with con:
+    con.executemany(sql, data)
 
 # # For creating new users
 # sql = "INSERT INTO 'USERS' (username, password_hash) values(?, ?);"
