@@ -30,6 +30,20 @@ with con:
         """
     )
     print("created current_usage table")
+
+    con.execute(
+        """
+        CREATE TABLE cluster_coordinates (
+            lat REAL NOT NULL,
+            lon REAL NOT NULL,
+            lock_postcode TEXT NOT NULL REFERENCES current_usage(lock_postcode),
+            lock_cluster_id INTEGER NOT NULL REFERENCES current_usage(lock_cluster_id),
+            num_lock INTEGER NOT NULL,
+            PRIMARY KEY(lat, lon)
+        );
+        """
+    )
+    print("created cluster_coords table")
     
     con.execute(
         """
@@ -70,19 +84,26 @@ with con:
     )
     print("created bicycle table")
 
+sql = """
+        INSERT INTO 'cluster_coordinates' (lat, lon, lock_postcode, lock_cluster_id, num_lock) 
+        VALUES (?, ?, ?, ?, ?);
+"""
+cluster_coordinates_data = [
+    (51.498508, -0.176752, "SW72AZ", "1", 10),
+    (51.498500, -0.176800, "SW72AZ", "2", 7),
+    (51.48327, -0.21455, "W68EL", "1", 5),
+]
+
+with con:
+    con.executemany(sql, cluster_coordinates_data)
+
 # initialize database with some locks
 sql = """
         INSERT INTO 'current_usage' (lock_postcode, lock_cluster_id, lock_id, occupied) 
         VALUES (?, ?, ?, ?);
 """
-data = [
-    ("SW72AZ", "1", "1", '0'),
-    ("SW72AZ", "1", "2", '0'),
-    ("SW72AZ", "1", "3", '0'),
-    ("SW72AZ", "2", "1", '0'),
-    ("SW72AZ", "2", "2", '0'),
-    ("W68EL", "1", "1", '0'),
-]
+data = [ [ (item[2], item[3], 1+i, '0') for i in range(item[4]) ] for item in cluster_coordinates_data ]
+data = [item for sublist in data for item in sublist]
 
 with con:
     con.executemany(sql, data)

@@ -4,6 +4,7 @@ function CheckInOut() {
     const [checked, setChecked] = useState(false);
 
     const CheckIn = () => {
+        // should also send usrname
         const msg = {
             lock_postcode: tmpSerialKeyPostCode,
             lock_cluster_id: tmpSerialKeyCluster, 
@@ -20,6 +21,7 @@ function CheckInOut() {
     }
 
     const CheckOut = () => {
+        // shoudln't need user: 
         const msg = {
             lock_postcode: serialKey.PostCode,
             lock_cluster_id: serialKey.Cluster, 
