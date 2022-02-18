@@ -4,7 +4,6 @@ function CheckInOut() {
     const [checked, setChecked] = useState(false);
 
     const CheckIn = () => {
-        // hardcoded lock info rn
         const msg = {
             lock_postcode: tmpSerialKeyPostCode,
             lock_cluster_id: tmpSerialKeyCluster, 
@@ -21,7 +20,6 @@ function CheckInOut() {
     }
 
     const CheckOut = () => {
-        // hardcoded lock info rn
         const msg = {
             lock_postcode: serialKey.PostCode,
             lock_cluster_id: serialKey.Cluster, 
