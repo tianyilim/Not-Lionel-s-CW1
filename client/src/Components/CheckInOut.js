@@ -14,6 +14,7 @@ function CheckInOut() {
             lock_id: tmpSerialKeyID,
             user: usrname,
         }
+        // TODO warn client on unsuccessful checkin
 
         fetch('http://localhost:5000/checkin',{
             method: 'POST',
