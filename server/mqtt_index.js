@@ -69,7 +69,8 @@ const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
 
 const express = require("express");
 const app = express();
-const cors = require('cors')
+const cors = require('cors');
+const { response } = require('express');
 app.use(express.json());
 app.use(cors());
 app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
@@ -99,4 +100,42 @@ app.post('/checkout',(request,response) => {
     state = false;
 
     response.json("Checkout Received");
+})
+
+// listen for user info
+app.post('/usrinfo',(request,response) => {
+    var tmp = request.body.username;
+
+    // play around with the database
+    const msg = {
+        checked: false,
+        postcode: 'SW72AZ',
+        cluster: 1,
+        id: 1
+    }
+
+    response.json(msg);
+})
+
+const sqlite3 = require('sqlite3').verbose();
+
+// Qn: When do we need to close the database? is it on a per-query basis or can we avoid closing it?
+let db = new sqlite3.Database("../db/es_cw1.db", sqlite3.OPEN_READWRITE, (err) => {
+    if (err) { console.error(err.message); }
+    console.log('JS Server connected to database.');
+});
+  
+// return marker
+app.get('/locks',(request,response) => {
+    const sql = `SELECT * FROM cluster_coordinates;`;
+
+    db.all(sql, [], (err,rows) => {
+        if (err) throw err; 
+        // rows.forEach(row => {
+        //     console.log(row);
+        // })  
+        response.send(rows);
+        // console.log("send response on initial fetch");
+    })
+
 })

@@ -20,6 +20,8 @@ Upon clicking onto the pin, details about the lock would be shown, including nam
 ![image](img/map_w_details.PNG)
 <br/>
 
+Positions of the locks/pins are fetched upon loading the webpage (TODO)
+
 ### Check In / Check Out Page
 The check in page has 3 text boxes for user to fill in the Serial Key number (Postcode-Cluster ID-ID) and a button to submit check in request. Upon checking in, information on the Lock Serial Key will be send across HTTP to the server on `http://localhost:5000/checkin` <br/>
 ![image](img/check_in_out.PNG) <br/>
@@ -29,6 +31,8 @@ A greyed out "Checked" button indicates that the user has successfully check in 
 
 When the lock detects the bicycle is removed, via the server, it would prompt the user to check out on the web app. This is indicated by the red "Check Out" button. The web-app asks for updates every second from the server on `http://localhost:5000/usrauthen` to know the status of the lock. <br/>
 ![image](img/check_out.PNG) <br/>
+
+The state of whether the user has checked into a lock is fetched on load of the page.
 
 <br/>
 

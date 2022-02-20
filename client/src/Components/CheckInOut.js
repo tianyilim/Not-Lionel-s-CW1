@@ -1,6 +1,9 @@
 import { useState, useEffect, React } from 'react'
 
 function CheckInOut() {
+    // TODO
+    const [usrname, setUsrname] = useState('token');
+
     const [checked, setChecked] = useState(false);
 
     const CheckIn = () => {
@@ -9,6 +12,7 @@ function CheckInOut() {
             lock_postcode: tmpSerialKeyPostCode,
             lock_cluster_id: tmpSerialKeyCluster, 
             lock_id: tmpSerialKeyID,
+            user: usrname,
         }
 
         fetch('http://localhost:5000/checkin',{
@@ -26,7 +30,7 @@ function CheckInOut() {
             lock_postcode: serialKey.PostCode,
             lock_cluster_id: serialKey.Cluster, 
             lock_id: serialKey.ID,
-            user: 'token'
+            user: usrname,
         }
 
         fetch('http://localhost:5000/checkout',{
@@ -97,8 +101,8 @@ function CheckInOut() {
     const [auth,setAuth] = useState(false);
     const update = async() => {
         const msg = {
-            user: 'token'
-        }
+            user: usrname
+        };
         fetch('http://localhost:5000/usrauthen',{
             method: 'POST',
             headers: {
@@ -111,8 +115,34 @@ function CheckInOut() {
         })
     }
 
+    const intial_fetch = () => {
+        console.log("initial fetch")
+
+        const msg = {
+            username: usrname
+        };
+        fetch('http://localhost:5000/usrinfo',{
+            method: 'POST',
+            headers: {
+                'Content-type': 'application/json',
+            },
+            body: JSON.stringify(msg),
+        }).then(response => response.json())
+        .then(response => {
+            setChecked(response.checked);
+            if (response.checked) {
+                setSerialKey({
+                    PostCode: response.postcode,
+                    Cluster: response.cluster,
+                    ID: response.id,
+                });
+            }
+        })
+    }
+
     useEffect(() => {
         update();
+        intial_fetch();
         setInterval(update,1000)
     },[])
 
