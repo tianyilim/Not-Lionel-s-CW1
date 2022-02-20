@@ -108,7 +108,7 @@ app.post('/usrinfo',(request,response) => {
 
     // play around with the database
     const msg = {
-        checked: false,
+        checked: true,
         postcode: 'SW72AZ',
         cluster: 1,
         id: 1

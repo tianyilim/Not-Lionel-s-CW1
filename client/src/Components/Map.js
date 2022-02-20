@@ -24,20 +24,26 @@ function Map() {
   }
 
   const [currentMarker, setCurrentMarker] = useState(null)
-  const [markers, setMarkers] = useState([{
-      id: 0,
-      location: {lat: 51.49918363237076, lng: -0.17634013995995976},
-      total: 20,
-      free: 0,
-      available: false
-    },{
-      id: 1,
-      location: {lat: 51.5, lng: -0.169},
-      total: 30,
-      free: 15,
-      available: true
-  }])
-  // const [markers, setMarkers] = useState([]);
+  // const [markers, setMarkers] = useState([{
+  //     id: 0,
+  //     location: {lat: 51.49918363237076, lng: -0.17634013995995976},
+  //     total: 20,
+  //     free: 0,
+  //     available: false
+  //   },{
+  //     id: 1,
+  //     location: {lat: 51.5, lng: -0.169},
+  //     total: 30,
+  //     free: 15,
+  //     available: true
+  // }])
+  // lat, lon, lock_postcode, lock_cluster_id, num_lock
+  const [markers, setMarkers] = useState([]);
+
+  const onClickMarker = (item) => {
+    setDetails(true); 
+    setCurrentMarker(item);
+  }
 
   // fetch markers position + name
   const initial_fetch = () => {
@@ -51,8 +57,8 @@ function Map() {
     })
     .then(response => response.json())
     .then(response => {
-      // setMarkers(response);
-      console.log(response)
+      setMarkers(response);
+      // console.log(response)
     })    
     // .then(console.log(markers))
   }
@@ -71,13 +77,11 @@ function Map() {
       >
           { /* Child components, such as markers, info windows, etc. */ }
           {markers.map((item,index) => {
-            // let location = {lat: Number(item.lat), lon: Number(item.lon)};
-            // console.log(typeof(location.lat));
-            // console.log(location);
+            let location = {lat: Number(item.lat), lng: Number(item.lon)};
             return (
-              <Marker key={index} position={item.location} 
-                icon={item.available ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png" : "https://maps.google.com/mapfiles/ms/icons/red-dot.png"}
-                onClick={ () => {setDetails(true); setCurrentMarker(item);} }
+              <Marker key={index} position={location} 
+                // icon={item.available ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png" : "https://maps.google.com/mapfiles/ms/icons/red-dot.png"}
+                onClick={ () => onClickMarker(item) }
               />
             )
           })}
@@ -89,12 +93,16 @@ function Map() {
         {(currentMarker != null) ? 
           <div className='Details'>
             <br/>
-            Name: <br/>
-            Total locks: {currentMarker.total} <br/>
+            Name: {currentMarker.lock_postcode}-{currentMarker.lock_cluster_id}<br/>
+            Total locks: {currentMarker.num_lock} <br/>
             Available locks: {currentMarker.free} <br/>
           </div>
         : <></>
         }
+
+        <button>
+          Check In
+        </button>
       </div>
 
     </div>
