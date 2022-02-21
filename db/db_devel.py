@@ -25,6 +25,7 @@ with con:
             bike_sn INTEGER REFERENCES bicycles(bike_sn),
             lock_time TEXT,
             expected_departure_time TEXT,
+            ouid INTEGER,
             PRIMARY KEY (lock_postcode, lock_cluster_id, lock_id)
         );
         """
@@ -55,8 +56,8 @@ with con:
             username TEXT REFERENCES users(username),
             bike_sn INTEGER REFERENCES bicycles(bike_sn),
             in_time TEXT NOT NULL,
-            stay_duration INTEGER NOT NULL,
-            remark INTEGER NOT NULL
+            stay_duration INTEGER,
+            remark INTEGER
         );
         """
     )
@@ -103,7 +104,7 @@ sql = """
         VALUES (?, ?, ?, ?);
 """
 data = [ [ (item[2], item[3], 1+i, '0') for i in range(item[4]) ] for item in cluster_coordinates_data ]
-data = [item for sublist in data for item in sublist]
+data = [item for sublist in data for item in sublist]   # Flatten list of lists
 
 with con:
     con.executemany(sql, data)

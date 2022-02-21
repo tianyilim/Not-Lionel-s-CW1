@@ -1,5 +1,7 @@
 # Server-side implementation
 from operator import sub
+from tabnanny import check
+from xmlrpc.client import Boolean
 import paho.mqtt.client as mqtt
 import ssl
 from socket import gethostname
@@ -8,6 +10,7 @@ from datetime import datetime, timedelta
 import json
 import sqlite3 as sl
 import os
+from threading import Timer
 
 # MQTT Parameteters
 CLIENT_NAME = "server_py"
@@ -20,6 +23,7 @@ DB_PATH = "../db/es_cw1.db"
 
 # used for grace period checking in between
 USER_CHECKIN_GRACE = 5
+LOCK_MUTEX = {}
 
 # callbacks
 def on_connect(client, userdata, flags, rc):
@@ -41,6 +45,7 @@ def on_message(client, userdata, message):
     
     # Decompose message
     subtopics = message.topic.split('/')
+    lock_name = '/'.join(subtopics[1:4])
 
     # decode message string from JSON
     print("Message received", payload)
@@ -52,30 +57,44 @@ def on_message(client, userdata, message):
     # Flag to update database
     to_update_curr_usage = False
     to_insert_overall_usage = False
-
-    # current time is a useful thing
-    dt_string = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    to_update_overall_usage = False
 
     # we first query the current usage database to find out what state we are in
     state = check_curr_usage(con, subtopics[1], subtopics[2], subtopics[3])
     print("Fetched", state, "from DB")
 
-    sql_update_curr_usage_param = {
+    # current time is a useful thing
+    dt_string = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # stay duration is also a useful thing
+    stay_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
+    stay_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
+    stay_duration = stay_end - stay_start
+    stay_duration = int(stay_duration.total_seconds())
+
+    sql_update_usage_param = {
         'occupied': state['occupied'],
         'lock_time': state['lock_time'],
         'expected_departure_time': None,
         'username': state['username'],
-        'bike_sn': state['bike_sn']
+        'bike_sn': state['bike_sn'],
+        'ouid': state['ouid'],
+        'stay_duration': stay_duration,
+        'remark': None
     }
     if subtopics[4] == 'in':
         # Event 1 - RPi reports that something has entered lock
-        sql_update_curr_usage_param['occupied'] = True
-        sql_update_curr_usage_param['lock_time'] = dt_string
         to_update_curr_usage = True
+        sql_update_usage_param['occupied'] = True  # True for all cases
 
         if not state['username'] and not state['lock_time'] and not state['occupied']:
             # State A, the start state
             print(subtopics[1], subtopics[2], subtopics[3], "State A->C at time", payload['timestamp'])
+            # Insert lock_time in OU
+            to_insert_overall_usage = True
+
+            # Update lock_time, occupied, ouid in CU
+            sql_update_usage_param['lock_time'] = dt_string
         
         elif not state['username']and state['lock_time'] and state['occupied']:
             # State C, something enters the lock even after the lock is already occupied
@@ -83,11 +102,25 @@ def on_message(client, userdata, message):
             print(subtopics[1], subtopics[2], subtopics[3], "State C->C at time", payload['timestamp'])
             print(subtopics[1], subtopics[2], subtopics[3], 
                 "In message received while lock still occupied. Updated lock_time.")
+            
+            # Update lock_time in OU
+            to_update_overall_usage = True
+
+            # Update lock_time in CU
+            sql_update_usage_param['lock_time'] = dt_string
         
         elif state['username'] and state['lock_time'] and not state['occupied']:
             # State B, after user has manually checked in
             print(subtopics[1], subtopics[2], subtopics[3], "State B->D at time", payload['timestamp'])
-            # TODO implement this
+            # ! This assumes that we are currently in state B. There is a mutex that lets it take priority over an expiring timer.
+            LOCK_MUTEX[lock_name] = True
+
+            # Insert lock_time, username in OU
+            to_insert_overall_usage = True
+            # Update occupied, ouid in CU
+            
+            # Arm RPi Alarm
+            send_alarm_msg(subtopics, True)
         
         else:
             # Throw an error
@@ -96,20 +129,21 @@ def on_message(client, userdata, message):
         
     elif subtopics[4] == 'out':
         # Event 3 - RPi reports that something has left lock
-        sql_update_curr_usage_param['occupied'] = False
-        sql_update_curr_usage_param['lock_time'] = None
-        to_update_curr_usage = True
-        to_insert_overall_usage = True
 
         # Check the state
         if not state['username'] and state['lock_time'] and state['occupied']:
             # State C, anonymous user has inserted a bike
             print(subtopics[1], subtopics[2], subtopics[3], "State C->A at time", payload['timestamp'])
+            # Update stay_duration, remark=0 in OU
+            sql_update_usage_param['remark'] = 0
+            to_update_overall_usage = True
 
-        elif state['username'] and state['lock_time'] and state['occupied']:
-            # State D, bike removed with named user
-            print(subtopics[1], subtopics[2], subtopics[3], "State D->E at time", payload['timestamp'])
-            # TODO trigger User Authentication event
+            # Update (remove) occupied, lock_time, ouid in CU
+            sql_update_usage_param['occupied'] = False
+            sql_update_usage_param['lock_time'] = None
+            sql_update_usage_param['ouid'] = None
+            to_update_curr_usage = True
+
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
@@ -120,7 +154,18 @@ def on_message(client, userdata, message):
         if not state['username'] and not state['lock_time'] and not state['occupied']:
             # State A, the start state
             print(subtopics[1], subtopics[2], subtopics[3], "State A->B at time", payload['timestamp'])
-            # TODO trigger timeout event
+            # ! Starts a timer to reset back to State A after a while.
+            Timer(USER_CHECKIN_GRACE*60, checkin_timeout_fn, args=(con, subtopics[1], subtopics[2], subtopics[3])).start()
+            
+            # update username, bike_sn, lock_time in CU
+            sql_update_usage_param['username'] = payload['username'] \
+                if payload['username'] != '' else None
+            sql_update_usage_param['bike_sn'] = payload['bike_sn'] \
+                if payload['bike_sn'] != '' else None
+            sql_update_usage_param['lock_time'] = dt_string
+
+            to_update_curr_usage = True
+
         elif not state['username'] and state['lock_time'] and state['occupied']:
             # State C, anonymous user has inserted a bike
 
@@ -131,19 +176,33 @@ def on_message(client, userdata, message):
 
             # define check in grace period as 5 minutes
             timestamp_match = time_duration.total_seconds() < 60*USER_CHECKIN_GRACE
-            if timestamp_match:
+
+            ouid_match = check_ouid(con, 
+                                sql_update_usage_param['ouid'],
+                                sql_update_usage_param['username']
+                                    )
+
+            if timestamp_match or ouid_match:
                 # Timestamps match, further update the usage table
                 print(subtopics[1], subtopics[2], subtopics[3], "State C->D at time", payload['timestamp'])
+                
+                # Arm RPi alarm
+                send_alarm_msg(subtopics, True)
+
+                # update username, bike_sn in OU
+                # update username, bike_sn in CU
                 if 'username' in payload:
-                    sql_update_curr_usage_param['username'] = payload['username'] \
+                    sql_update_usage_param['username'] = payload['username'] \
                         if payload['username'] != '' else None
                 if 'bike_sn' in payload:
-                    sql_update_curr_usage_param['bike_sn'] = payload['bike_sn'] \
+                    sql_update_usage_param['bike_sn'] = payload['bike_sn'] \
                         if payload['bike_sn'] != '' else None
                 to_update_curr_usage = True
+
             else:
                 # Timestamps don't match, user association fails, db not updated.
                 print(subtopics[1], subtopics[2], subtopics[3], "State C->C at time", payload['timestamp'])
+                # TODO warn client (on MQTT channel?)
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
@@ -151,30 +210,128 @@ def on_message(client, userdata, message):
 
     elif subtopics[4] == 'checkout':
         # Event 4 - User checks out from JS
-        if state['username'] and not state['lock_time'] and not state['occupied']:
+        if state['username'] and state['lock_time'] and state['occupied']:
             # State E, the checkout state
-            # TODO trigger checkout event
-            print(subtopics[1], subtopics[2], subtopics[3], "State E->A at time", payload['timestamp'])
-            # clear the username
-            sql_update_curr_usage_param['username'] = None
+            print(subtopics[1], subtopics[2], subtopics[3], "State D->C at time", payload['timestamp'])
+            # update (remove) username from CU
+            sql_update_usage_param['username'] = None
             to_update_curr_usage = True
+            
+            # Disarm Rpi Alarm
+            send_alarm_msg(subtopics, False)
             
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
             assert False, 'Client \'Checkout\' response error state'
 
+    elif subtopics[4] == 'report':
+        # Event 5 - User confirms that their bike has been stolen.
+        if state['username'] and state['lock_time'] and state['occupied']:
+            # State E, the checkout state
+            print(subtopics[1], subtopics[2], subtopics[3], "State D->A at time", payload['timestamp'])
+            # update stay_duration, remark=1 in OU
+            to_update_overall_usage = True
+            sql_update_usage_param['remark'] = 1
+
+            # update (remove) username, lock_time, occupied, ouid in CU
+            sql_update_usage_param['username'] = None
+            sql_update_usage_param['occupied'] = False
+            sql_update_usage_param['lock_time'] = None
+            sql_update_usage_param['ouid'] = None
+            to_update_curr_usage = True
+            
+        else:
+            # Throw an error
+            print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
+            assert False, 'Client \'Report\' response error state'
+    
     elif subtopics[4] == 'stolen':
-        # RPi reports bike is stolen
-        print(subtopics[1], subtopics[2], subtopics[3], "TODO beep boop, bike stolen!")
+        # Event 6 - RPi reports bike is stolen
+        if not state['username'] and state['lock_time'] and state['occupied']:
+            # State E, the checkout state
+            print(subtopics[1], subtopics[2], subtopics[3], "State C->A at time", payload['timestamp'])
+            # update stay_duration, remark=1 in OU
+            to_update_overall_usage = True
+            sql_update_usage_param['remark'] = 1
+            
+            # update (remove) lock_time, occupied, ouid in CU
+            sql_update_usage_param['occupied'] = False
+            sql_update_usage_param['lock_time'] = None
+            sql_update_usage_param['ouid'] = None
+            to_update_curr_usage = True
+            
+        else:
+            # Throw an error
+            print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
+            assert False, 'Client \'Report\' response error state'
+
     elif subtopics[4] == 'telemetry':
         # RPi reports regular telemetry data
         print(subtopics[1], subtopics[2], subtopics[3], "TODO Handle regular telemetry")
+    
     else:
         # Error handling (unexpected topic)
         print(subtopics[1], subtopics[2], subtopics[3], "Got unexpected topic", message.topics)
         
+    assert not (to_insert_overall_usage and to_update_overall_usage), "Should not update and insert overall usage simultaneously"
+    if to_insert_overall_usage:
+        # calculate stay duration by comparing times
+        stay_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
+        stay_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
+        stay_duration = stay_end - stay_start
+        stay_duration = int(stay_duration.total_seconds())
+        
+        sql = '''
+            INSERT INTO overall_usage
+            (lock_postcode, lock_cluster_id, lock_id, 
+            username, bike_sn, in_time)
+            VALUES ({}, {}, {}, {}, {}, {});
+        '''.format(
+            "\'"+subtopics[1]+"\'", subtopics[2], subtopics[3], 
+            'NULL' if sql_update_usage_param['username'] is None else "\'"+sql_update_usage_param['username']+"\'",
+            'NULL' if sql_update_usage_param['bike_sn'] is None else "\'"+sql_update_usage_param['bike_sn']+"\'",
+            "\'"+state['lock_time']+"\'"
+        )
+        print("Inserting into overall_usage table with query:\n", sql)
+        with con:
+            con.execute(sql)
+        
+        print("Inserted into overall_usage table.")
     
+        # get OUID
+        sql = "SELECT last_insert_rowid();"
+        cursor = con.cursor()
+        cursor.execute(sql)
+        records = cursor.fetchall()
+        print("Fetched last-inserted OUID as", records)
+        sql_update_usage_param['ouid'] = records[0]     # it should only return one thing
+
+    elif to_update_overall_usage:
+        sql = '''
+            UPDATE overall_usage SET
+            in_time = {},
+            stay_duration = {},
+            remark = {},
+            username = {},
+            bike_sn = {},
+            WHERE transaction_sn={};
+        '''.format(
+            sql_update_usage_param['lock_time'],
+            sql_update_usage_param['stay_duration'],
+            sql_update_usage_param['remark'],
+            'NULL' if sql_update_usage_param['username'] is None 
+                else "\'"+sql_update_usage_param['username']+"\'",
+            'NULL' if sql_update_usage_param['bike_sn'] is None 
+                else "\'"+sql_update_usage_param['bike_sn']+"\'",
+            sql_update_usage_param['ouid']
+        )
+        print("Updating overall_usage table with query:\n", sql)
+        with con:
+            con.execute(sql)
+        
+        print("Updated overall_usage table.")
+
     if to_update_curr_usage:
         sql = '''
           UPDATE current_usage SET
@@ -182,20 +339,22 @@ def on_message(client, userdata, message):
           lock_time = {},
           expected_departure_time = {},
           username = {},
-          bike_sn = {}
+          bike_sn = {},
+          ouid = {},
           WHERE lock_postcode=\'{}\'
           AND lock_cluster_id={}
           AND lock_id={};
         '''.format(
-            sql_update_curr_usage_param['occupied'],
-            'NULL' if not sql_update_curr_usage_param['lock_time'] 
-                else "\'"+sql_update_curr_usage_param['lock_time']+"\'",    # add quotes only around string
-            'NULL' if sql_update_curr_usage_param['expected_departure_time'] is None 
-                else "\'"+sql_update_curr_usage_param['expected_departure_time']+"\'",
-            'NULL' if sql_update_curr_usage_param['username'] is None 
-                else "\'"+sql_update_curr_usage_param['username']+"\'",
-            'NULL' if sql_update_curr_usage_param['bike_sn'] is None 
-                else "\'"+sql_update_curr_usage_param['bike_sn']+"\'",
+            sql_update_usage_param['occupied'],
+            'NULL' if not sql_update_usage_param['lock_time'] 
+                else "\'"+sql_update_usage_param['lock_time']+"\'",    # add quotes only around string
+            'NULL' if sql_update_usage_param['expected_departure_time'] is None 
+                else "\'"+sql_update_usage_param['expected_departure_time']+"\'",
+            'NULL' if sql_update_usage_param['username'] is None 
+                else "\'"+sql_update_usage_param['username']+"\'",
+            'NULL' if sql_update_usage_param['bike_sn'] is None 
+                else "\'"+sql_update_usage_param['bike_sn']+"\'",
+            'NULL' if sql_update_usage_param['ouid'] is None else sql_update_usage_param['ouid'],
             subtopics[1],
             subtopics[2],
             subtopics[3]
@@ -206,38 +365,16 @@ def on_message(client, userdata, message):
         
         print("Updated current_usage table.")
 
-    if to_insert_overall_usage:
-        # calculate stay duration by comparing times
-        stay_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
-        stay_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
-        stay_duration = stay_end - stay_start
+    # release lock mutex
+    LOCK_MUTEX[lock_name] = False
 
-        sql = '''
-            INSERT INTO overall_usage
-            (lock_postcode, lock_cluster_id, lock_id, 
-            username, bike_sn, in_time, stay_duration, remark)
-            VALUES ({}, {}, {}, {}, {}, {}, {}, {});
-        '''.format(
-            "\'"+subtopics[1]+"\'", subtopics[2], subtopics[3], 
-            'NULL' if sql_update_curr_usage_param['username'] is None else "\'"+sql_update_curr_usage_param['username']+"\'",
-            'NULL' if sql_update_curr_usage_param['bike_sn'] is None else "\'"+sql_update_curr_usage_param['bike_sn']+"\'",
-            "\'"+state['lock_time']+"\'",
-            (int(stay_duration.total_seconds())),    # For now we store a time with second accuracy
-            0   # remark will always be 0 by default
-        )
-        print("Inserting into overall_usage table with query:\n", sql)
-        with con:
-            con.execute(sql)
-        
-        print("Inserted into overall_usage table.")
-    
     print()
     print() # newlines for clearer status
 
-# TODO don't use strings here in case of sql injections
+# TODO don't use strings here in case of sql injections - replace after we are sure it's working
 def check_curr_usage(con, lock_postcode, lock_cluster_id, lock_id):
     query = '''
-            SELECT occupied, username, bike_sn, lock_time FROM current_usage
+            SELECT occupied, username, bike_sn, lock_time, ouid FROM current_usage
             WHERE lock_postcode=\'{}\'
             AND lock_cluster_id={}
             AND lock_id={};
@@ -252,8 +389,47 @@ def check_curr_usage(con, lock_postcode, lock_cluster_id, lock_id):
             'occupied': data[0],
             'username': data[1],
             'bike_sn' : data[2],
-            'lock_time': data[3] 
+            'lock_time': data[3],
+            'ouid' : data[4]
             }
+
+def check_ouid(con, ouid, username):
+    # check the OUID in current_usage is NULL or has no username attached
+    q = '''
+        SELECT username FROM overall_usage WHERE transaction_sn = {};
+        '''.format(ouid)
+    with con:
+        data = con.execute(q, [])
+        data = data.fetchall()[0]
+
+    return data == username     # only pass if username in the ouid is same as provided
+
+# Removes username and lock_time from CU table, shifting from state B->A due to a timeout
+def checkin_timeout_fn(con, lock_postcode, lock_cluster_id, lock_id):
+    lock_name = '/'.join([lock_postcode, lock_cluster_id, lock_id])
+    if not (LOCK_MUTEX[lock_name]==True):
+        query = '''
+                UPDATE current_usage SET occupied = 0,
+                lock_time = NULL,
+                WHERE lock_postcode=\'{}\'
+                AND lock_cluster_id={}
+                AND lock_id={};
+                '''.format(lock_postcode, lock_cluster_id, lock_id)
+        print("Querying curr_usage with query:\n", query)
+        with con:
+            con.execute(query)
+        print(lock_postcode, lock_cluster_id, lock_id, "State B->A")
+    else:
+        print(lock_postcode, lock_cluster_id, lock_id, "is locked. Not modifying its state.")
+
+
+def send_alarm_msg(subtopics, onoff: Boolean):
+    alarm_topic = ('/'.join( subtopics[:-1]+['alarm'] ))
+    msg = {'status' : onoff}
+    print("Publishing", msg, "on", alarm_topic)
+
+    msg = bytes(json.dumps(msg), 'utf-8')
+    client.publish(alarm_topic, msg)
 
 # Main code
 if __name__ == "__main__":
