@@ -31,21 +31,27 @@ def on_message(client, userdata, message):
     print("message retain flag=",message.retain)
 
     reply = json.dumps( { "msg": "received: " + payload["msg"] } )
-    client.publish(TOPIC, bytes(reply, 'utf-8'))
+    client.publish('ic_embedded_group_4/reply', bytes(reply, 'utf-8'))
 
-server = mqtt.Client(CLIENT_NAME)                           # Create client object
-status = server.connect('localhost', port=8883)              # Connect to MQTT broker
-server.tls_set(ca_certs='./auth/ca/ca.crt', certfile='./auth/client/client.crt', keyfile='./auth/client/client.key', tls_version=ssl.PROTOCOL_TLSv1_2)
+server = mqtt.Client(CLIENT_NAME)                               # Create client object
+if True:
+    server.username_pw_set("user", password="user")                 # Set username and password
+    server.tls_set(ca_certs='./auth/ca.crt', tls_version=2)
+    server.tls_insecure_set(True)                                   # This is still needed! Why?
+    status = server.connect('35.178.122.34', port=8883)             # Connect to MQTT broker
+else:
+    status = server.connect('localhost', port=1883)             # Connect to MQTT broker
+
 print(CLIENT_NAME, "connect", mqtt.error_string(status))    # Error handling
 
 # add client callback
 server.on_message = on_message
-
-# loop for certain time
-server.loop_start()
-# Subscribe to a topic
 server.subscribe(TOPIC)
 print(CLIENT_NAME, "subscribed to", TOPIC)
+
+# loop for certain time
+# Subscribe to a topic
+server.loop_start()
 
 sleep(10)
 server.loop_stop()

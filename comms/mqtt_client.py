@@ -35,8 +35,14 @@ def on_message(client, userdata, message):
     client.publish(TOPIC, bytes(reply, 'utf-8'))
 
 client = mqtt.Client(CLIENT_NAME)                           # Create client object
-status = client.connect("localhost", port=8883)                   # Connect to MQTT broker
-client.tls_set(ca_certs='./auth/ca/ca.crt', certfile='./auth/client/client.crt', keyfile='./auth/client/client.key', tls_version=ssl.PROTOCOL_TLSv1_2)
+if True:
+    client.username_pw_set("user", password="user")             # Set username and password
+    client.tls_set(ca_certs='./auth/ca.crt', tls_version=ssl.PROTOCOL_TLSv1_2)
+    client.tls_insecure_set(True)
+    status = client.connect('35.178.122.34', port=8883)             # Connect to MQTT broker
+else:
+    status = client.connect('localhost', port=1883)             # Connect to MQTT broker
+
 print(CLIENT_NAME, "connect", mqtt.error_string(status))    # Error handling
 
 # add client callbacks
@@ -51,12 +57,12 @@ while not conn_flag:
     sleep(2)
     print("Waiting for connection...")
 
-sleep(2)
+sleep(0.1)
 print("Client Publishing")
-msg = { "payload" : "Hello world!" }
+msg = { "msg" : "Hello world!" }
 msg = bytes(json.dumps(msg), 'utf-8')
-client.publish(TOPIC, "test123")
-sleep(2)
+client.publish(TOPIC, msg)
+sleep(0.1)
 
 client.loop_stop()
 client.disconnect()
