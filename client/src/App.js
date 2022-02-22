@@ -46,7 +46,7 @@ function App() {
           <Routes >
             <Route exact path="/" element={<Map/>} />
             <Route exact path="/checkin" element={<CheckInOut getToken={getToken} />} />
-            {/* <Route exact path="/profile" element={<RegisterPage/>} /> */}
+            <Route exact path="/register" element={<RegisterPage/>} />
             <Route exact path="/profile" element={<LoginPage setToken={setToken} />} />
           </Routes >
         </div>

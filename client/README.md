@@ -34,10 +34,10 @@ The state of whether the user has checked into a lock is fetched on load of the 
 <br/>
 
 ### Login Page
-Allow user to login into their account. 
-![image](img/login.PNG)
+Allow user to login into their account. <br/>
+![image](img/login.PNG) <br/>
 Upon login, credentials will be sent to the server via HTTP for check. Upon successful login, username would be stored in the session.
-
+<br/>
 
 ### Register Page (not available)
 Allow users to register into the system by filling in information such as full name, username, email address and passward.
@@ -48,21 +48,21 @@ Allow users to register into the system by filling in information such as full n
 The footer is a menu bar that allows user to jump to different page. The lock icon refers to the Check In Page, the home icon refers to the home page and the person icon refers to the register page.
 
 ## TODO
-1. Add bike serial number (and send accross HTTP)
-2. Lock database
+1. Lock database
    - fetch availability (bool + number of locks)
    - fetch average time per cluster
-3. Check In confirmation
+2. Check In confirmation
    - handle 'checkinfail' MQTT message
-4. Check In with auto-filled serial key (by URL query string)
+3. Check In with auto-filled serial key
    - QR code
-   - redirect link from Map
-5. Password encryption
-6. Profile Page
+4. Password encryption
+5. Profile Page
+   - user can add bike serial number
+6. Redirect log in page 
 
 ## Change Log
 27-Jan-2022 : initial commit <br/>
 08-Feb-2022 : added map page <br/>
 12-Feb-2022 : added check in out + register page. added router. <br/>
 17-Feb-2022 : added HTTP communication with server on check in out page. <br/>
-22-Feb-2022 : updated state machine + added login page with simple login authentication. <br/>
+22-Feb-2022 : updated state machine + added login page with simple login authentication + query string in checkin page + bike serial number. <br/>

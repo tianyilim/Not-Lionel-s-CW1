@@ -1,23 +1,31 @@
 import { useState, useEffect, React } from 'react'
+import { useSearchParams } from "react-router-dom";
+
+import PromptLogin from './PromptLogin.js';
 
 function CheckInOut({getToken}) {
-    // can fetch if needed?
-    // TODO: check whether use already logged in
-    // const [usrname, setUsrname] = useState(
-    //     getToken() === null ? '' : getToken()
-    // );
+    let [searchParams, setSearchParams] = useSearchParams();
+    let params = searchParams.get("serialKey") === null ? [] : searchParams.get("serialKey").split(' ');
+
+    const usrname = useState(getToken());
 
     const [checked, setChecked] = useState(false);
+    const [awaiting, setAwait] = useState(false);
+
+    const [bicycle, setBicycle] = useState([])
+
+    const [bicycleSN, setBicycleSN] = useState('');
 
     const CheckIn = () => {
-        // should also send usrname
+        setAwait(true);
+
         const msg = {
-            lock_postcode: tmpSerialKeyPostCode,
+            lock_postcode: tmpSerialKeyPostCode.toUpperCase(),
             lock_cluster_id: tmpSerialKeyCluster, 
             lock_id: tmpSerialKeyID,
-            user: getToken(),
+            user: usrname,
+            bike_sn: bicycleSN,
         }
-        // TODO warn client on unsuccessful checkin
 
         fetch('http://localhost:5000/checkin',{
             method: 'POST',
@@ -25,17 +33,23 @@ function CheckInOut({getToken}) {
                 'Content-type': 'application/json',
             },
             body: JSON.stringify(msg),
+        }).then(response => response.json())
+        .then(response => {
+            if (response.state) setChecked(true);
+            // TODO: warn unsuccessful
+            else {
+                alert("Unsuccessfuly Login")
+            }
+            setAwait(false);
         })
-        // }).then(response => console.log(response));
     }
 
     const CheckOut = () => {
-        // shoudln't need user: 
         const msg = {
             lock_postcode: serialKey.PostCode,
             lock_cluster_id: serialKey.Cluster, 
             lock_id: serialKey.ID,
-            user: getToken(),
+            user: usrname, // not needed
         }
 
         fetch('http://localhost:5000/checkout',{
@@ -45,12 +59,17 @@ function CheckInOut({getToken}) {
             },
             body: JSON.stringify(msg),
         })
-        // }).then(response => console.log(response));
+
+        // any confirmation needed?
+        setChecked(false);
     }
 
     const ButtonOnClick = () => {
         if (!checked) {
-            if (tmpSerialKeyPostCode === '' || tmpSerialKeyCluster === '' || tmpSerialKeyID === '') return;
+            if (tmpSerialKeyPostCode === '' || tmpSerialKeyCluster === '' || tmpSerialKeyID === '') {
+                alert("Please enter all details");
+                return;
+            }
 
             if (tmpSerialKeyPostCode.split(' ').length !== 1) {
                 alert("Please remove whitespaces in Postcode");
@@ -67,26 +86,22 @@ function CheckInOut({getToken}) {
 
         else {
             CheckOut();
-            // setAuth(false);
             setSerialKey({
                 PostCode: '',
                 Cluster: '',
                 ID: ''
             });
         }
-
-        setChecked(!checked);
         
     }
 
-    // Serial Key should be stored in the server
     const [serialKey, setSerialKey] = useState({
         PostCode: '',
         Cluster: '',
         ID: ''
     });
-    const [tmpSerialKeyPostCode, setTmpSerialKeyPostCode] = useState('')
-    const [tmpSerialKeyCluster, setTmpSerialKeyCluster] = useState('')
+    const [tmpSerialKeyPostCode, setTmpSerialKeyPostCode] = useState(params.length ? params[0] : '')
+    const [tmpSerialKeyCluster, setTmpSerialKeyCluster] = useState(params.length ? params[1] : '')
     const [tmpSerialKeyID, setTmpSerialKeyID] = useState('')
 
     const InputSubmit = () => {};
@@ -122,10 +137,10 @@ function CheckInOut({getToken}) {
     // }
 
     const intial_fetch = () => {
-        console.log("initial fetch")
+        // console.log("initial fetch")
 
         const msg = {
-            username: getToken()
+            username: usrname
         };
         fetch('http://localhost:5000/usrinfo',{
             method: 'POST',
@@ -142,7 +157,19 @@ function CheckInOut({getToken}) {
                     Cluster: response.cluster,
                     ID: response.id,
                 });
+                setBicycleSN(response.bike_sn)
             }
+        })
+
+        fetch('http://localhost:5000/usrbike',{
+            method: 'POST',
+            headers: {
+                'Content-type': 'application/json',
+            },
+            body: JSON.stringify(msg)
+        }).then(response => response.json())
+        .then(response => {
+            setBicycle(response);
         })
     }
 
@@ -153,7 +180,7 @@ function CheckInOut({getToken}) {
     },[])
 
 
-    return (
+    return (usrname !== null) ? ( 
         <div>
             <form onSubmit={InputSubmit} className='CenterText SerialKeyText'>
                 <label>
@@ -164,14 +191,18 @@ function CheckInOut({getToken}) {
                         <input 
                             className='SerialKey'
                             type='text' onChange={InputOnChangePostCode}
+                            value={tmpSerialKeyPostCode}
                             placeholder={checked ? serialKey.PostCode : 'Postcode'}
                             disabled={checked ? true : false }
-                            style={{fontSize:'20px'}}
+                            style={{fontSize:'20px', 
+                                textTransform: tmpSerialKeyPostCode==='' ? 'none' :  'uppercase'
+                            }}
                         />
                         -
                         <input 
                             className='SerialKey'
                             type='text' onChange={InputOnChangeCluster}
+                            value={tmpSerialKeyCluster}
                             placeholder={checked ? serialKey.Cluster : 'Cluster ID'}
                             disabled={checked ? true : false }
                             style={{fontSize:'20px'}}
@@ -187,13 +218,34 @@ function CheckInOut({getToken}) {
                     </div>
                 </label>
             </form>
+            <br/>
+
+            <div className='CenterText'>
+                <select
+                    style={{width: '80vw',
+                        fontSize: '20px',
+                        paddingLeft: '5px',
+                        color: '#707070'
+                    }}
+                    defaultValue={bicycleSN}
+                    onChange={ (event) => setBicycleSN(event.target.value) }
+                    disabled={checked}
+                >
+                    <option value=''  disabled hidden>Bicycle</option>
+                    {bicycle.map((item,index) => {
+                        return(
+                            <option key={index} value={item.bike_sn}>{item.bike_name}</option>
+                        )
+                    })}
+                </select>
+            </div>
 
             <button 
                 className={'CheckInOut ' + 
-                    (checked ? 'CheckOutButton' : 'CheckInButton')
+                    (awaiting ? 'CheckedButton' : (checked ? 'CheckOutButton' : 'CheckInButton'))
                 }
                 onClick={ButtonOnClick}
-                // disabled={(checked&&!auth) ? true : false }
+                disabled={awaiting ? true : false }
             >
                 {checked ? 'Check Out': 'Check In'}
             </button>
@@ -204,7 +256,7 @@ function CheckInOut({getToken}) {
                 {checked ? 'Report Stolen' : ''}
             </div>
         </div>
-    )
+    ) : <PromptLogin />
 }
 
 export default CheckInOut

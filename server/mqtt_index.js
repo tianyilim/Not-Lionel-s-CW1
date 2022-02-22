@@ -43,14 +43,14 @@ let db = new sqlite3.Database("../db/es_cw1.db", sqlite3.OPEN_READWRITE, (err) =
 const moment = require('moment');
 
 // send check in msg via mqtt when user check in
-const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id, username) => {
+const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id, username, bike_sn) => {
     const topic = 'ic_embedded_group_4/' + lock_postcode + '/' + lock_cluster_id + '/' + lock_id + '/checkin';
     console.log(topic);
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     const message = Buffer.from(JSON.stringify({
         "timestamp": timestamp,
         "username": username,
-        "bike_sn": "",
+        "bike_sn": bike_sn,
     }));
     
     client.publish(topic, message);
@@ -72,7 +72,6 @@ const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
 const express = require("express");
 const app = express();
 const cors = require('cors');
-const { response, application } = require('express');
 app.use(express.json());
 app.use(cors());
 app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
@@ -80,9 +79,11 @@ app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
 // listen for check in
 app.post('/checkin',(request,response) => {
     var tmp = request.body;
-    mqtt_checkin(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id, tmp.user);
+    mqtt_checkin(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id, tmp.user, tmp.bike_sn);
 
-    response.json("Checkin Received");
+    // TODO : wait for checkin confimration / unsucessful
+    let state = true;
+    response.json({state: state});
 })
 
 // prompt check out
@@ -107,15 +108,31 @@ app.post('/checkout',(request,response) => {
 app.post('/usrinfo',(request,response) => {
     var tmp = request.body.username;
 
-    // play around with the database
+    // TODO: query SQL
     const msg = {
-        checked: true,
+        checked: false,
         postcode: 'SW72AZ',
         cluster: 1,
         id: 1
     }
 
     response.json(msg);
+})
+
+// return user's bike name + sn
+app.post('/usrbike',(request,response) => {
+    var tmp = request.body.uername;
+
+    // TODO: query SQL
+    const msg = [{
+        bike_name: 'hello',
+        bike_sn: '123',
+    },{
+        bike_name: 'world',
+        bike_sn: "456",
+    }]
+
+    response.send(msg);
 })
 
 // check valid login

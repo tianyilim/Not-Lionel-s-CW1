@@ -10,7 +10,7 @@ function Map() {
   })
   const [details, setDetails] = useState(false)
   const containerStyle = {
-    height: details ? '70vh' : '100vh'
+    height: details ? '65vh' : '100vh'
   };
   const [currentLoc, setCurrentLoc] = useState({ lat: 51.49918363237076, lng: -0.17634013995995976 })
 
@@ -34,8 +34,6 @@ function Map() {
 
   // fetch markers position + name
   const initial_fetch = () => {
-    console.log("initial fetch");
-
     fetch('http://localhost:5000/locks',{
       method: 'GET',
       headers: {
@@ -45,9 +43,7 @@ function Map() {
     .then(response => response.json())
     .then(response => {
       setMarkers(response);
-      // console.log(response)
     })    
-    // .then(console.log(markers))
   }
 
   useEffect(() => {
@@ -78,18 +74,26 @@ function Map() {
       <div>
         <AiOutlineClose className='CloseButton' onClick={ () => setDetails(false) } />
         {(currentMarker != null) ? 
+        <div>
           <div className='Details'>
-            <br/>
             Name: {currentMarker.lock_postcode}-{currentMarker.lock_cluster_id}<br/>
             Total locks: {currentMarker.num_lock} <br/>
             Available locks: {currentMarker.free} <br/>
           </div>
+
+          <br/>
+
+          <button className='Details'>
+            <a style={{textDecoration: 'none', color: 'black'}}
+              href={"/checkin?serialKey=" + currentMarker.lock_postcode + "+" + currentMarker.lock_cluster_id} 
+            >
+              Check In
+            </a>
+          </button>
+        </div>
         : <></>
         }
 
-        <button>
-          Check In
-        </button>
       </div>
 
     </div>

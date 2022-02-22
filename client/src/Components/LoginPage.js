@@ -68,12 +68,23 @@ function LoginPage({setToken}) {
                             {wrongPw ? "Incorrect password or username." : ""}
                         </div>
 
-                        <button className='CenterText' 
-                            onClick={Login}
-                            style={{marginTop: '30px',}}
-                        >
-                            Login
-                        </button>
+                        <div style={{display: 'flex'}}>
+                            <button className='CenterText' 
+                                onClick={Login}
+                                style={{marginTop: '30px',}}
+                            >
+                                Login
+                            </button>
+                            <button className='CenterText' 
+                                style={{marginTop: '30px',}}
+                            >
+                                <a href="/register"
+                                    style={{textDecoration: 'none', color: 'black'}}
+                                >
+                                    Register
+                                </a>
+                            </button>
+                        </div>
 
                         <br/>
 
