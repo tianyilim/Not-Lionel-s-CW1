@@ -110,14 +110,14 @@ def on_message(client, userdata, message):
             # Update lock_time in OU
             # to_update_overall_usage = True
             sql = '''
-                UPDATE overall_usage SET in_time = \'{}\'
-                WHERE transaction_sn={};
-                '''.format( dt_string, state['ouid'] )
-            print("Updating overall_usage table with query:\n", sql)
+                UPDATE overall_usage SET in_time = ?
+                WHERE transaction_sn=?;
+                '''
+                # '''.format( dt_string, state['ouid'] )
+            # print("Updating overall_usage table with query:\n", sql)
             with con:
-                con.execute(sql)
-            
-            print("Updated overall_usage table.")
+                con.execute(sql, [dt_string, state['ouid']])
+            print("Updated overall_usage table with new lock_time.")
 
             # Update lock_time in CU
             sql_update_usage_param['lock_time'] = dt_string
@@ -195,6 +195,7 @@ def on_message(client, userdata, message):
             if timestamp_match or ouid_match:
                 # Timestamps match, further update the usage table
                 print(subtopics[1], subtopics[2], subtopics[3], "State C->D at time", payload['timestamp'])
+                send_checkin_response(subtopics, True)
                 
                 # Arm RPi alarm
                 send_alarm_msg(subtopics, True)
@@ -210,24 +211,34 @@ def on_message(client, userdata, message):
 
                 # update username, bike_sn in OU
                 # to_update_overall_usage = True
+                # sql = '''
+                #     UPDATE overall_usage SET username = {}, bike_sn = {}
+                #     WHERE transaction_sn={};
+                #     '''.format(
+                #         'NULL' if sql_update_usage_param['username'] is None 
+                #             else "\'"+sql_update_usage_param['username']+"\'",
+                #         'NULL' if sql_update_usage_param['bike_sn'] is None 
+                #             else sql_update_usage_param['bike_sn'], 
+                #         state['ouid'] 
+                #         )
+                # print("Updating overall_usage table with query:\n", sql)
                 sql = '''
-                    UPDATE overall_usage SET username = {}, bike_sn = {}
-                    WHERE transaction_sn={};
-                    '''.format(
-                        'NULL' if sql_update_usage_param['username'] is None 
-                            else "\'"+sql_update_usage_param['username']+"\'",
-                        'NULL' if sql_update_usage_param['bike_sn'] is None 
-                            else sql_update_usage_param['bike_sn'], 
-                        state['ouid'] 
-                        )
-                print("Updating overall_usage table with query:\n", sql)
+                    UPDATE overall_usage SET username=?, bike_sn=?
+                    WHERE transaction_sn=?;
+                    '''
                 with con:
-                    con.execute(sql)
-                print("Updated overall_usage table.")
+                    # con.execute(sql)
+                    con.execute(sql, [
+                        sql_update_usage_param['username'],
+                        sql_update_usage_param['bike_sn'],
+                        state['ouid']
+                    ])
+                print("Updated overall_usage table with username, bike_sn.")
 
             else:
                 # Timestamps don't match, user association fails, db not updated.
                 print(subtopics[1], subtopics[2], subtopics[3], "State C->C at time", payload['timestamp'], "Timestamp_match", timestamp_match, "OUID_Match", ouid_match)
+                send_checkin_response(subtopics, False)
                 # TODO warn client (on MQTT channel?)
         else:
             # Throw an error
@@ -304,22 +315,38 @@ def on_message(client, userdata, message):
     assert not (to_insert_overall_usage and to_update_overall_usage), "Should not update and insert overall usage simultaneously"
     
     if to_insert_overall_usage:        
+        # sql = '''
+        #     INSERT INTO overall_usage
+        #     (lock_postcode, lock_cluster_id, lock_id, 
+        #     username, bike_sn, in_time)
+        #     VALUES ({}, {}, {}, {}, {}, {});
+        # '''.format(
+        #     "\'"+subtopics[1]+"\'", subtopics[2], subtopics[3], 
+        #     'NULL' if sql_update_usage_param['username'] is None else "\'"+sql_update_usage_param['username']+"\'",
+        #     'NULL' if sql_update_usage_param['bike_sn'] is None else sql_update_usage_param['bike_sn'],
+        #     "\'"+sql_update_usage_param['lock_time']+"\'"
+        # )
+        # print("Inserting into overall_usage table with query:\n", sql)
         sql = '''
             INSERT INTO overall_usage
             (lock_postcode, lock_cluster_id, lock_id, 
             username, bike_sn, in_time)
-            VALUES ({}, {}, {}, {}, {}, {});
+            VALUES (?, ?, ?, ?, ?, ?);
         '''.format(
             "\'"+subtopics[1]+"\'", subtopics[2], subtopics[3], 
             'NULL' if sql_update_usage_param['username'] is None else "\'"+sql_update_usage_param['username']+"\'",
             'NULL' if sql_update_usage_param['bike_sn'] is None else sql_update_usage_param['bike_sn'],
             "\'"+sql_update_usage_param['lock_time']+"\'"
         )
-        print("Inserting into overall_usage table with query:\n", sql)
         with con:
-            con.execute(sql)
-        
-        print("Inserted into overall_usage table.")
+            # con.execute(sql)
+            con.execute(sql, [
+                subtopics[1], subtopics[2], subtopics[3],
+                sql_update_usage_param['username'],
+                sql_update_usage_param['bike_sn'],
+                sql_update_usage_param['lock_time']
+                ])
+        print("Inserted into overall_usage table username, bike_sn and lock_time.")
     
         # get OUID
         sql = "SELECT last_insert_rowid();"
@@ -331,52 +358,84 @@ def on_message(client, userdata, message):
 
     elif to_update_overall_usage:
         # sql_..param is overwritten, (to update curr_usage) so we read from state instead
+        # sql = '''
+        #     UPDATE overall_usage SET
+        #     stay_duration = {},
+        #     remark = {}
+        #     WHERE transaction_sn={};
+        # '''.format(
+        #     sql_update_usage_param['stay_duration'],
+        #     sql_update_usage_param['remark'],
+        #     state['ouid']
+        # )
+        # print("Updating overall_usage table with query:\n", sql)
         sql = '''
             UPDATE overall_usage SET
-            stay_duration = {},
-            remark = {}
-            WHERE transaction_sn={};
-        '''.format(
-            sql_update_usage_param['stay_duration'],
-            sql_update_usage_param['remark'],
-            state['ouid']
-        )
-        print("Updating overall_usage table with query:\n", sql)
+            stay_duration=?, remark=?
+            WHERE transaction_sn=?;
+        '''
         with con:
-            con.execute(sql)
-        
-        print("Updated overall_usage table.")
+            # con.execute(sql)
+            con.execute(sql, [
+                sql_update_usage_param['stay_duration'],
+                sql_update_usage_param['remark'],
+                state['ouid']
+            ])
+        print("Updated overall_usage table with stay_duration and remark.")
 
     if to_update_curr_usage:
+        # sql = '''
+        #   UPDATE current_usage SET
+        #   occupied = {},
+        #   lock_time = {},
+        #   expected_departure_time = {},
+        #   username = {},
+        #   bike_sn = {},
+        #   ouid = {}
+        #   WHERE lock_postcode=\'{}\'
+        #   AND lock_cluster_id={}
+        #   AND lock_id={};
+        # '''.format(
+        #     sql_update_usage_param['occupied'],
+        #     'NULL' if not sql_update_usage_param['lock_time'] 
+        #         else "\'"+sql_update_usage_param['lock_time']+"\'",    # add quotes only around string
+        #     'NULL' if sql_update_usage_param['expected_departure_time'] is None 
+        #         else "\'"+sql_update_usage_param['expected_departure_time']+"\'",
+        #     'NULL' if sql_update_usage_param['username'] is None 
+        #         else "\'"+sql_update_usage_param['username']+"\'",
+        #     'NULL' if sql_update_usage_param['bike_sn'] is None 
+        #         else sql_update_usage_param['bike_sn'],
+        #     'NULL' if sql_update_usage_param['ouid'] is None else sql_update_usage_param['ouid'],
+        #     subtopics[1],
+        #     subtopics[2],
+        #     subtopics[3]
+        # ) 
+        # print("Updating current_usage table with query:\n", sql)
         sql = '''
           UPDATE current_usage SET
-          occupied = {},
-          lock_time = {},
-          expected_departure_time = {},
-          username = {},
-          bike_sn = {},
-          ouid = {}
-          WHERE lock_postcode=\'{}\'
-          AND lock_cluster_id={}
-          AND lock_id={};
-        '''.format(
-            sql_update_usage_param['occupied'],
-            'NULL' if not sql_update_usage_param['lock_time'] 
-                else "\'"+sql_update_usage_param['lock_time']+"\'",    # add quotes only around string
-            'NULL' if sql_update_usage_param['expected_departure_time'] is None 
-                else "\'"+sql_update_usage_param['expected_departure_time']+"\'",
-            'NULL' if sql_update_usage_param['username'] is None 
-                else "\'"+sql_update_usage_param['username']+"\'",
-            'NULL' if sql_update_usage_param['bike_sn'] is None 
-                else sql_update_usage_param['bike_sn'],
-            'NULL' if sql_update_usage_param['ouid'] is None else sql_update_usage_param['ouid'],
-            subtopics[1],
-            subtopics[2],
-            subtopics[3]
-        ) 
-        print("Updating current_usage table with query:\n", sql)
+          occupied = ?,
+          lock_time = ?,
+          expected_departure_time = ?,
+          username = ?,
+          bike_sn = ?,
+          ouid = ?
+          WHERE lock_postcode=?
+          AND lock_cluster_id=?
+          AND lock_id=?;
+        '''
         with con:
-            con.execute(sql)
+            # con.execute(sql)
+            con.execute(sql, [
+                sql_update_usage_param['occupied'],
+                sql_update_usage_param['lock_time'],    # add quotes only around string
+                sql_update_usage_param['expected_departure_time'],
+                sql_update_usage_param['username'],
+                sql_update_usage_param['bike_sn'],
+                sql_update_usage_param['ouid'],
+                subtopics[1],
+                subtopics[2],
+                subtopics[3]
+            ])
         
         print("Updated current_usage table.")
 
@@ -386,19 +445,23 @@ def on_message(client, userdata, message):
     print()
     print() # newlines for clearer status
 
-# TODO don't use strings here in case of sql injections - replace after we are sure it's working
 def check_curr_usage(con, lock_postcode, lock_cluster_id, lock_id):
+    # query = '''
+    #         SELECT occupied, username, bike_sn, lock_time, ouid FROM current_usage
+    #         WHERE lock_postcode=\'{}\'
+    #         AND lock_cluster_id={}
+    #         AND lock_id={};
+    #         '''.format(lock_postcode, lock_cluster_id, lock_id)    
     query = '''
-            SELECT occupied, username, bike_sn, lock_time, ouid FROM current_usage
-            WHERE lock_postcode=\'{}\'
-            AND lock_cluster_id={}
-            AND lock_id={};
-            '''.format(lock_postcode, lock_cluster_id, lock_id)
-    print("Querying curr_usage with query:\n", query)
+        SELECT occupied, username, bike_sn, lock_time, ouid FROM current_usage
+        WHERE lock_postcode=?
+        AND lock_cluster_id=?
+        AND lock_id=?;
+        '''
+    # print("Querying curr_usage with query:\n", query)
     with con:
-        data = con.execute(query, [])
+        data = con.execute(query, [lock_postcode, lock_cluster_id, lock_id])
         data = data.fetchall()[0] # This returns a tuple in a list for some reason...
-        print("Query returned", data)
 
         return { 
             'occupied': data[0],
@@ -410,11 +473,9 @@ def check_curr_usage(con, lock_postcode, lock_cluster_id, lock_id):
 
 def check_ouid(con, ouid, username):
     # check the OUID in current_usage is NULL or has no username attached
-    q = '''
-        SELECT username FROM overall_usage WHERE transaction_sn = {};
-        '''.format(ouid)
+    q = 'SELECT username FROM overall_usage WHERE transaction_sn = ?;'
     with con:
-        data = con.execute(q, [])
+        data = con.execute(q, [ouid])
         data = data.fetchall()[0][0]
         print("Fetched", data, "from overall_usage while checking for ouid", ouid, "username", username)
 
@@ -435,16 +496,18 @@ def checkin_timeout_fn(lock_postcode, lock_cluster_id, lock_id):
                     username = NULL,
                     bike_sn = NULL,
                     lock_time = NULL
-                    WHERE lock_postcode=\'{}\'
-                    AND lock_cluster_id={}
-                    AND lock_id={};
-                    '''.format(lock_postcode, lock_cluster_id, lock_id)
-            print("Querying curr_usage with query:\n", query)
+                    WHERE lock_postcode=?
+                    AND lock_cluster_id=?
+                    AND lock_id=?;
+                    '''
+                    # '''.format(lock_postcode, lock_cluster_id, lock_id)
+            # print("Querying curr_usage with query:\n", query)
             with con:
-                con.execute(query)
+                con.execute(query, [lock_postcode, lock_cluster_id, lock_id])
             print(lock_postcode, lock_cluster_id, lock_id, "State B->A")
             
-            # TODO checkin fail
+            # TODO checkin fail -> Response code?
+            send_checkin_response([BASE_TOPIC, lock_postcode, lock_cluster_id, lock_id, ' '], False)
         else:
             print(lock_postcode, lock_cluster_id, lock_id, "is locked. Not modifying its state.")
     else:
@@ -458,6 +521,14 @@ def send_alarm_msg(subtopics, onoff: Boolean):
 
     msg = bytes(json.dumps(msg), 'utf-8')
     client.publish(alarm_topic, msg)
+
+def send_checkin_response(subtopics, status: Boolean):
+    topic = ('/'.join( subtopics[:-1]+['checkinresponse'] ))
+    msg = {'status': status}
+    print("Publishing", msg, "on", topic)
+
+    msg = bytes(json.dumps(msg), 'utf-8')
+    client.publish(topic, msg)
 
 # Main code
 if __name__ == "__main__":
