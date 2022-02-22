@@ -51,14 +51,13 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
 1. Lock database
    - fetch availability (bool + number of locks)
    - fetch average time per cluster
-2. Check In confirmation
-   - handle 'checkinfail' MQTT message
-3. Check In with auto-filled serial key
+2. Check In with auto-filled serial key
    - QR code
-4. Password encryption
-5. Profile Page
+3. Password encryption
+4. Profile Page
    - user can add bike serial number
-6. Add analytics
+5. Add analytics
+6. Check in Page default bike SN
 
 ## Change Log
 27-Jan-2022 : initial commit <br/>

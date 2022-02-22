@@ -134,6 +134,9 @@ def on_message(client, userdata, message):
             
             # Arm RPi Alarm
             send_alarm_msg(subtopics, True)
+
+            # Send checkin confirmation
+            send_checkin_response(subtopics, True, 'B->D')
         
         else:
             # Throw an error
@@ -195,7 +198,7 @@ def on_message(client, userdata, message):
             if timestamp_match or ouid_match:
                 # Timestamps match, further update the usage table
                 print(subtopics[1], subtopics[2], subtopics[3], "State C->D at time", payload['timestamp'])
-                send_checkin_response(subtopics, True)
+                send_checkin_response(subtopics, True, 'C->D')
                 
                 # Arm RPi alarm
                 send_alarm_msg(subtopics, True)
@@ -238,8 +241,8 @@ def on_message(client, userdata, message):
             else:
                 # Timestamps don't match, user association fails, db not updated.
                 print(subtopics[1], subtopics[2], subtopics[3], "State C->C at time", payload['timestamp'], "Timestamp_match", timestamp_match, "OUID_Match", ouid_match)
-                send_checkin_response(subtopics, False)
-                # TODO warn client (on MQTT channel?)
+                send_checkin_response(subtopics, False, 'Unable to find lock entry to associate with check-in')
+                
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
@@ -506,8 +509,9 @@ def checkin_timeout_fn(lock_postcode, lock_cluster_id, lock_id):
                 con.execute(query, [lock_postcode, lock_cluster_id, lock_id])
             print(lock_postcode, lock_cluster_id, lock_id, "State B->A")
             
-            # TODO checkin fail -> Response code?
-            send_checkin_response([BASE_TOPIC, lock_postcode, lock_cluster_id, lock_id, ' '], False)
+            send_checkin_response(
+                [BASE_TOPIC, lock_postcode, lock_cluster_id, lock_id, ' '],
+                False, 'Check-in timed out. Check-in again and re-insert bike')
         else:
             print(lock_postcode, lock_cluster_id, lock_id, "is locked. Not modifying its state.")
     else:
@@ -522,9 +526,9 @@ def send_alarm_msg(subtopics, onoff: Boolean):
     msg = bytes(json.dumps(msg), 'utf-8')
     client.publish(alarm_topic, msg)
 
-def send_checkin_response(subtopics, status: Boolean):
+def send_checkin_response(subtopics, status: Boolean, message: str=''):
     topic = ('/'.join( subtopics[:-1]+['checkinresponse'] ))
-    msg = {'status': status}
+    msg = {'status': status, 'message': message}
     print("Publishing", msg, "on", topic)
 
     msg = bytes(json.dumps(msg), 'utf-8')

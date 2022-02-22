@@ -42,7 +42,7 @@ function CheckInOut({getToken, setReturn}) {
             if (response.state) setChecked(true);
             // TODO: warn unsuccessful
             else {
-                alert("Unsuccessfuly Login")
+                alert("Unsuccessfuly Login \nError: " + response.msg);
             }
             setAwait(false);
         })
@@ -156,6 +156,7 @@ function CheckInOut({getToken, setReturn}) {
         .then(response => {
             setChecked(response.checked);
             if (response.checked) {
+                console.log(response)
                 setSerialKey({
                     PostCode: response.postcode,
                     Cluster: response.cluster,

@@ -12,7 +12,7 @@ const mqtt_options = {
 const client  = mqtt.connect('mqtt://localhost:1883', mqtt_options)
 client.on('connect', function () {
   console.log('JS Server connecting to MQTT Broker')
-  client.subscribe('ic_embedded_group_4/+/+/+/out', function (err) {
+  client.subscribe('ic_embedded_group_4/+/+/+/checkinresponse', function (err) {
     if (!err) { console.log("JS Server connected to MQTT Broker") }
   })
 })
@@ -25,20 +25,28 @@ let db = new sqlite3.Database("../db/es_cw1.db", sqlite3.OPEN_READWRITE, (err) =
     console.log('JS Server connected to database.');
 });
 
-// listen to lock/out
-// client.on('message', function (topic, message) {
-//     const subtopics = topic.split('/');
+var desired_msg = '';
+var resp = null;
 
-//     // check that there are 5 subtopics:
-//     // ic_embedded_group_4/lock_postcode/lock_cluster_id/lock_id/TOPIC
-//     console.assert(subtopics.length==5, `Incorrect subtopic format, got ${topic}`)
+client.on('message', function (topic, message) {
+    const subtopics = topic.split('/');
 
-//     let payload = JSON.parse(message.toString());
-//     const timestamp = payload.timestamp;
+    // check that there are 5 subtopics:
+    // ic_embedded_group_4/lock_postcode/lock_cluster_id/lock_id/TOPIC
+    console.assert(subtopics.length==5, `Incorrect subtopic format, got ${topic}`)
 
-//     console.log("Received message from lock/out");
+    let payload = JSON.parse(message.toString());
 
-// })
+    if (resp !== null && desired_msg === topic) {
+        console.log("Received checkin payload", payload);
+        resp.json({state: payload.status, msg: payload.message});
+
+        // reset variables
+        desired_msg = '';
+        resp = null;
+    }
+
+})
 
 const moment = require('moment');
 
@@ -78,12 +86,14 @@ app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
 
 // listen for check in
 app.post('/checkin',(request,response) => {
+    resp = response;
     var tmp = request.body;
     mqtt_checkin(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id, tmp.user, tmp.bike_sn);
+    desired_msg = "ic_embedded_group_4/" + tmp.lock_postcode + "/" + tmp.lock_cluster_id.toString() + "/" + tmp.lock_id.toString() + "/checkinresponse";
 
-    // TODO : wait for checkin confimration / unsucessful
-    let state = true;
-    response.json({state: state});
+  
+    // should there be some timeout thing?
+    // response.json({state: state});
 })
 
 // prompt check out
@@ -108,32 +118,45 @@ app.post('/checkout',(request,response) => {
 app.post('/usrinfo',(request,response) => {
     var tmp = request.body.username;
 
-    // TODO: query SQL
-    const msg = {
-        checked: false,
-        postcode: 'SW72AZ',
-        cluster: 1,
-        id: 1
-    }
+    const sql = `SELECT lock_postcode, lock_cluster_id, lock_id, bike_sn FROM current_usage WHERE username=?;`;
 
-    response.json(msg);
+    db.all(sql, [tmp], (err,row) => {
+        if (err) throw err; 
+        // console.log(row);
+        let msg = {};
+        if (row.length) {
+            let tmp = row[0];
+            msg = {
+                checked: true,
+                postcode: tmp.lock_postcode,
+                cluster: tmp.lock_cluster_id,
+                id: tmp.lock_id,
+                bike_sn: tmp.bike_sn
+            }
+        } else {
+            msg = {
+                checked: false,
+                postcode: '',
+                cluster: 0,
+                id: 0,
+                bike_sn: ''
+            }
+        }
+        response.json(msg);
+    })    
 })
 
 // return user's bike name + sn
 app.post('/usrbike',(request,response) => {
-    var tmp = request.body.uername;
-    console.log("usrbike")
+    var tmp = request.body.username;
 
-    // TODO: query SQL
-    const msg = [{
-        bike_name: 'hello',
-        bike_sn: '123',
-    },{
-        bike_name: 'world',
-        bike_sn: "456",
-    }]
+    const sql = `SELECT bike_name, bike_sn FROM bicycles WHERE username=?;`;
 
-    response.send(msg);
+    db.all(sql, [tmp], (err,rows) => {
+        if (err) throw err; 
+        // console.log(rows);
+        response.send(rows)
+    })    
 })
 
 // check valid login
@@ -155,9 +178,6 @@ app.get('/locks',(request,response) => {
 
     db.all(sql, [], (err,rows) => {
         if (err) throw err; 
-        // rows.forEach(row => {
-        //     console.log(row);
-        // })  
         response.send(rows);
     })
 
