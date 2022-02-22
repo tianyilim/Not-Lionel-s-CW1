@@ -57,3 +57,11 @@ brand, .site-title, .footer-heading {
   font-style: oblique;
   font-variant-caps: small-caps;
 }
+
+.site-title {
+  color: $background-color !important;
+}
+
+.site-header {
+  background-color: $brand-color;
+}
