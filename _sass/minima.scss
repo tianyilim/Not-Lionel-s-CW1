@@ -49,3 +49,11 @@ $on-laptop:        800px !default;
   "minima/layout",
   "minima/syntax-highlighting"
 ;
+
+brand, .site-title, .footer-heading {
+  color: $brand-color !important;
+  text-decoration: none;
+  font-weight: 800;
+  font-style: oblique;
+  font-variant-caps: small-caps;
+}
