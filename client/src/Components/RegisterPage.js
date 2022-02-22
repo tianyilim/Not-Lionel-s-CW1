@@ -99,12 +99,23 @@ function RegisterPage() {
                     {correctPw ? "" : "Please confirm passward!"}
                 </div>
 
-                <button className='CenterText' 
-                    onClick={Register}
-                    style={{marginTop: '30px',}}
-                >
-                    Register
-                </button>
+                <div style={{display:'flex'}}>
+                    <button className='CenterText'
+                        style={{marginTop: '30px'}}
+                    >
+                        <a href="/login"
+                            style={{textDecoration: 'none', color: 'black'}}
+                        >
+                            Log In
+                        </a>
+                    </button>
+                    <button className='CenterText' 
+                        onClick={Register}
+                        style={{marginTop: '30px',}}
+                    >
+                        Register
+                    </button>
+                </div>
 
                 <br/>
             </div>

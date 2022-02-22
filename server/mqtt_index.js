@@ -122,6 +122,7 @@ app.post('/usrinfo',(request,response) => {
 // return user's bike name + sn
 app.post('/usrbike',(request,response) => {
     var tmp = request.body.uername;
+    console.log("usrbike")
 
     // TODO: query SQL
     const msg = [{

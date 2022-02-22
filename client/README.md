@@ -39,7 +39,7 @@ Allow user to login into their account. <br/>
 Upon login, credentials will be sent to the server via HTTP for check. Upon successful login, username would be stored in the session.
 <br/>
 
-### Register Page (not available)
+### Register Page
 Allow users to register into the system by filling in information such as full name, username, email address and passward.
 ![image](img/register.PNG)
 <br/>
@@ -58,7 +58,7 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
 4. Password encryption
 5. Profile Page
    - user can add bike serial number
-6. Redirect log in page 
+6. Add analytics
 
 ## Change Log
 27-Jan-2022 : initial commit <br/>

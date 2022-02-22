@@ -3,11 +3,15 @@ import { useSearchParams } from "react-router-dom";
 
 import PromptLogin from './PromptLogin.js';
 
-function CheckInOut({getToken}) {
+function CheckInOut({getToken, setReturn}) {
     let [searchParams, setSearchParams] = useSearchParams();
     let params = searchParams.get("serialKey") === null ? [] : searchParams.get("serialKey").split(' ');
 
-    const usrname = useState(getToken());
+    const usrname = getToken();
+    if (usrname === null) {
+        let query = params.length ? "?serialKey=" + params[0] + "+" + params[1] : '';
+        setReturn('/checkin'+query)
+    }
 
     const [checked, setChecked] = useState(false);
     const [awaiting, setAwait] = useState(false);
