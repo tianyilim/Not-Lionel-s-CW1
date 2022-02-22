@@ -174,7 +174,41 @@ app.post('/login', (request,response) => {
 
 // return marker
 app.get('/locks',(request,response) => {
-    const sql = `SELECT * FROM cluster_coordinates;`;
+    const sql = `SELECT * FROM cluster_coordinates;`
+
+    const try1 = `SELECT * FROM cluster_coordinates
+    WHERE lock_postcode=? 
+    AND lock_cluster_id=?;`
+    
+    // -> lat, lon, lock_postcode, lock_cluster_id, num_lock
+    /*pseudocode:
+        for postcode in lock_postcode:
+            for cluster in lock_cluster_id:
+                `SELECT COUNT(*) FROM current_usage
+                WHERE lock_postcode=?, lock_cluster_id=?, occupied=1;
+                `
+                retval = count of occupied items
+                -> get occupancy based on retval/num_lock
+                -> append to list?
+    */
+    
+    /*
+    `SELECT cluster_coordinates.lock_postcode, cluster_coordinates.lock_cluster_id, cluster_coordinates.num_lock, COUNT(*) FROM current_usage
+    JOIN cluster_coordinates 
+    ON cluster_coordinates.lock_postcode=current_usage.lock_postcode 
+    AND cluster_coordinates.lock_cluster_id=current_usage.lock_cluster_id 
+    WHERE current_usage.occupied=0
+    GROUP BY current_usage.lock_postcode, current_usage.lock_cluster_id;`
+
+    `SELECT DISTINCT COUNT(*)
+    FROM cluster_coordinates INNER JOIN current_usage 
+    ON cluster_coordinates.lock_postcode=current_usage.lock_postcode 
+    AND cluster_coordinates.lock_cluster_id=current_usage.lock_cluster_id 
+    AND current_usage.occupied=0;`
+
+    // IN: postcode, cluster_id
+    // OUT: lat, lon, number of locks(num_lock), available locks/occupied locks
+    */
 
     db.all(sql, [], (err,rows) => {
         if (err) throw err; 
