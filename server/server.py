@@ -110,7 +110,7 @@ def on_message(client, userdata, message):
             # Update lock_time in OU
             # to_update_overall_usage = True
             sql = '''
-                UPDATE overall_usage SET in_time = {}
+                UPDATE overall_usage SET in_time = \'{}\'
                 WHERE transaction_sn={};
                 '''.format( dt_string, state['ouid'] )
             print("Updating overall_usage table with query:\n", sql)
