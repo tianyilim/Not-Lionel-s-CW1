@@ -1,5 +1,3 @@
-var state = false;
-
 const mqtt = require('mqtt');
 
 const mqtt_options = {
@@ -19,35 +17,39 @@ client.on('connect', function () {
   })
 })
 
+// Setting up Database
+const sqlite3 = require('sqlite3').verbose();
+// Qn: When do we need to close the database? is it on a per-query basis or can we avoid closing it?
+let db = new sqlite3.Database("../db/es_cw1.db", sqlite3.OPEN_READWRITE, (err) => {
+    if (err) { console.error(err.message); }
+    console.log('JS Server connected to database.');
+});
+
 // listen to lock/out
-client.on('message', function (topic, message) {
-    const subtopics = topic.split('/');
+// client.on('message', function (topic, message) {
+//     const subtopics = topic.split('/');
 
-    // check that there are 5 subtopics:
-    // ic_embedded_group_4/lock_postcode/lock_cluster_id/lock_id/TOPIC
-    console.assert(subtopics.length==5, `Incorrect subtopic format, got ${topic}`)
+//     // check that there are 5 subtopics:
+//     // ic_embedded_group_4/lock_postcode/lock_cluster_id/lock_id/TOPIC
+//     console.assert(subtopics.length==5, `Incorrect subtopic format, got ${topic}`)
 
-    let payload = JSON.parse(message.toString());
-    const timestamp = payload.timestamp;
+//     let payload = JSON.parse(message.toString());
+//     const timestamp = payload.timestamp;
 
-    // EVENT: prompt user 
-    // TODO
-    state = true;
+//     console.log("Received message from lock/out");
 
-    console.log("Received message from lock/out");
-
-})
+// })
 
 const moment = require('moment');
 
 // send check in msg via mqtt when user check in
-const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id) => {
+const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id, username) => {
     const topic = 'ic_embedded_group_4/' + lock_postcode + '/' + lock_cluster_id + '/' + lock_id + '/checkin';
     console.log(topic);
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     const message = Buffer.from(JSON.stringify({
         "timestamp": timestamp,
-        "username": "token",
+        "username": username,
         "bike_sn": "",
     }));
     
@@ -70,7 +72,7 @@ const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
 const express = require("express");
 const app = express();
 const cors = require('cors');
-const { response } = require('express');
+const { response, application } = require('express');
 app.use(express.json());
 app.use(cors());
 app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
@@ -78,26 +80,25 @@ app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
 // listen for check in
 app.post('/checkin',(request,response) => {
     var tmp = request.body;
-    mqtt_checkin(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id);
+    mqtt_checkin(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id, tmp.user);
 
     response.json("Checkin Received");
 })
 
 // prompt check out
-app.post('/usrauthen',(request,response) => {
-    var tmp = request.body;
-    // check does the username matches
-    response.json({
-        state: state, // state is tmp
-    });
-})
+// app.post('/usrauthen',(request,response) => {
+//     var tmp = request.body;
+//     // check does the username matches
+//     response.json({
+//         state: state, // state is tmp
+//     });
+// })
 
 // listen for check out
 app.post('/checkout',(request,response) => {
     var tmp = request.body;
     // serial key should be stored in the server
     mqtt_checkout(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id);
-    state = false;
 
     response.json("Checkout Received");
 })
@@ -117,14 +118,19 @@ app.post('/usrinfo',(request,response) => {
     response.json(msg);
 })
 
-const sqlite3 = require('sqlite3').verbose();
+// check valid login
+app.post('/login', (request,response) => {
 
-// Qn: When do we need to close the database? is it on a per-query basis or can we avoid closing it?
-let db = new sqlite3.Database("../db/es_cw1.db", sqlite3.OPEN_READWRITE, (err) => {
-    if (err) { console.error(err.message); }
-    console.log('JS Server connected to database.');
-});
-  
+    // TODO: query SQL to check logins
+    var tmp = request.body;
+    let state = false;
+    if (tmp.username === 'abc' && tmp.pw === '123') {
+        state = true;
+    }
+
+    response.json({state: state});
+})
+
 // return marker
 app.get('/locks',(request,response) => {
     const sql = `SELECT * FROM cluster_coordinates;`;
@@ -135,7 +141,6 @@ app.get('/locks',(request,response) => {
         //     console.log(row);
         // })  
         response.send(rows);
-        // console.log("send response on initial fetch");
     })
 
 })

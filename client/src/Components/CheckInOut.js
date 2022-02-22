@@ -1,8 +1,11 @@
 import { useState, useEffect, React } from 'react'
 
-function CheckInOut() {
-    // TODO
-    const [usrname, setUsrname] = useState('token');
+function CheckInOut({getToken}) {
+    // can fetch if needed?
+    // TODO: check whether use already logged in
+    // const [usrname, setUsrname] = useState(
+    //     getToken() === null ? '' : getToken()
+    // );
 
     const [checked, setChecked] = useState(false);
 
@@ -12,7 +15,7 @@ function CheckInOut() {
             lock_postcode: tmpSerialKeyPostCode,
             lock_cluster_id: tmpSerialKeyCluster, 
             lock_id: tmpSerialKeyID,
-            user: usrname,
+            user: getToken(),
         }
         // TODO warn client on unsuccessful checkin
 
@@ -22,7 +25,8 @@ function CheckInOut() {
                 'Content-type': 'application/json',
             },
             body: JSON.stringify(msg),
-        }).then(response => console.log(response));
+        })
+        // }).then(response => console.log(response));
     }
 
     const CheckOut = () => {
@@ -31,7 +35,7 @@ function CheckInOut() {
             lock_postcode: serialKey.PostCode,
             lock_cluster_id: serialKey.Cluster, 
             lock_id: serialKey.ID,
-            user: usrname,
+            user: getToken(),
         }
 
         fetch('http://localhost:5000/checkout',{
@@ -40,7 +44,8 @@ function CheckInOut() {
                 'Content-type': 'application/json',
             },
             body: JSON.stringify(msg),
-        }).then(response => console.log(response));
+        })
+        // }).then(response => console.log(response));
     }
 
     const ButtonOnClick = () => {
@@ -60,9 +65,9 @@ function CheckInOut() {
             });
         }
 
-        else if (auth) {
+        else {
             CheckOut();
-            setAuth(false);
+            // setAuth(false);
             setSerialKey({
                 PostCode: '',
                 Cluster: '',
@@ -99,28 +104,28 @@ function CheckInOut() {
     };
     
     // keep checking for udpates to see is user authentication needed
-    const [auth,setAuth] = useState(false);
-    const update = async() => {
-        const msg = {
-            user: usrname
-        };
-        fetch('http://localhost:5000/usrauthen',{
-            method: 'POST',
-            headers: {
-                'Content-type': 'application/json',
-            },
-            body: JSON.stringify(msg),
-        }).then(response => response.json())
-        .then(response => {
-            setAuth(response.state);
-        })
-    }
+    // const [auth,setAuth] = useState(false);
+    // const update = async() => {
+    //     const msg = {
+    //         user: usrname
+    //     };
+    //     fetch('http://localhost:5000/usrauthen',{
+    //         method: 'POST',
+    //         headers: {
+    //             'Content-type': 'application/json',
+    //         },
+    //         body: JSON.stringify(msg),
+    //     }).then(response => response.json())
+    //     .then(response => {
+    //         setAuth(response.state);
+    //     })
+    // }
 
     const intial_fetch = () => {
         console.log("initial fetch")
 
         const msg = {
-            username: usrname
+            username: getToken()
         };
         fetch('http://localhost:5000/usrinfo',{
             method: 'POST',
@@ -142,9 +147,9 @@ function CheckInOut() {
     }
 
     useEffect(() => {
-        update();
+        // update();
         intial_fetch();
-        setInterval(update,1000)
+        // setInterval(update,1000)
     },[])
 
 
@@ -185,12 +190,12 @@ function CheckInOut() {
 
             <button 
                 className={'CheckInOut ' + 
-                    (checked ? (auth ? 'CheckOutButton' : 'CheckedButton') : 'CheckInButton')
+                    (checked ? 'CheckOutButton' : 'CheckInButton')
                 }
                 onClick={ButtonOnClick}
-                disabled={(checked&&!auth) ? true : false }
+                // disabled={(checked&&!auth) ? true : false }
             >
-                {checked ? (auth ? 'Check Out' : 'Checked') : 'Check In'}
+                {checked ? 'Check Out': 'Check In'}
             </button>
 
             <div className='CenterText'

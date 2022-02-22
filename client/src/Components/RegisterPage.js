@@ -20,7 +20,7 @@ function RegisterPage() {
         else setCorrectPw(true);
     }
 
-    const Register = (event) => {
+    const Register = () => {
         console.log(data);
 
         // check whether all data are input correctly

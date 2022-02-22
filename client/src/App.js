@@ -7,9 +7,20 @@ import { IconContext } from 'react-icons';
 
 import Map from './Components/Map.js'
 import CheckInOut from './Components/CheckInOut.js';
-import RegisterPage from './Components/RegisterPage.js';;
+import RegisterPage from './Components/RegisterPage.js';
+import LoginPage from './Components/LoginPage.js';
 
 function App() {
+  const setToken = (username) => {
+    sessionStorage.setItem('username', JSON.stringify(username));
+  }
+
+  // return null if username not set / not yet login
+  const getToken = () => {
+    const token = JSON.parse(sessionStorage.getItem('username'));
+    return token;
+  }
+
   const MenuBar = [{
     name: 'CheckInOut',
     link: '/checkin',
@@ -20,7 +31,7 @@ function App() {
     icon: <BsFillHouseDoorFill />
   },{
     name: 'Profile',
-    link: 'profile',
+    link: '/profile',
     icon: <BsFillPersonFill />
   }]
 
@@ -34,8 +45,9 @@ function App() {
         <div>
           <Routes >
             <Route exact path="/" element={<Map/>} />
-            <Route exact path="/checkin" element={<CheckInOut/>} />
-            <Route exact path="/profile" element={<RegisterPage/>} />
+            <Route exact path="/checkin" element={<CheckInOut getToken={getToken} />} />
+            {/* <Route exact path="/profile" element={<RegisterPage/>} /> */}
+            <Route exact path="/profile" element={<LoginPage setToken={setToken} />} />
           </Routes >
         </div>
         

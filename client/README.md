@@ -26,17 +26,20 @@ Positions of the locks/pins are fetched upon loading the webpage (TODO)
 The check in page has 3 text boxes for user to fill in the Serial Key number (Postcode-Cluster ID-ID) and a button to submit check in request. Upon checking in, information on the Lock Serial Key will be send across HTTP to the server on `http://localhost:5000/checkin` <br/>
 ![image](img/check_in_out.PNG) <br/>
 
-A greyed out "Checked" button indicates that the user has successfully check in into the lock <br/>
-![image](img/checked_in.PNG) <br/>
-
-When the lock detects the bicycle is removed, via the server, it would prompt the user to check out on the web app. This is indicated by the red "Check Out" button. The web-app asks for updates every second from the server on `http://localhost:5000/usrauthen` to know the status of the lock. <br/>
+User have to check out the bicycle on the webpage before removing the bike, by the red "Check Out" button. 
 ![image](img/check_out.PNG) <br/>
 
 The state of whether the user has checked into a lock is fetched on load of the page.
 
 <br/>
 
-### Register Page
+### Login Page
+Allow user to login into their account. 
+![image](img/login.PNG)
+Upon login, credentials will be sent to the server via HTTP for check. Upon successful login, username would be stored in the session.
+
+
+### Register Page (not available)
 Allow users to register into the system by filling in information such as full name, username, email address and passward.
 ![image](img/register.PNG)
 <br/>
@@ -45,14 +48,21 @@ Allow users to register into the system by filling in information such as full n
 The footer is a menu bar that allows user to jump to different page. The lock icon refers to the Check In Page, the home icon refers to the home page and the person icon refers to the register page.
 
 ## TODO
-1. User authentication (log in) 
-    - send username when check in/check out
-    - add bike serial number (and send accross HTTP)
-2. Check in info stored on server instead of local
-3. Lock database
+1. Add bike serial number (and send accross HTTP)
+2. Lock database
+   - fetch availability (bool + number of locks)
+   - fetch average time per cluster
+3. Check In confirmation
+   - handle 'checkinfail' MQTT message
+4. Check In with auto-filled serial key (by URL query string)
+   - QR code
+   - redirect link from Map
+5. Password encryption
+6. Profile Page
 
 ## Change Log
 27-Jan-2022 : initial commit <br/>
 08-Feb-2022 : added map page <br/>
 12-Feb-2022 : added check in out + register page. added router. <br/>
 17-Feb-2022 : added HTTP communication with server on check in out page. <br/>
+22-Feb-2022 : updated state machine + added login page with simple login authentication. <br/>

@@ -24,19 +24,6 @@ function Map() {
   }
 
   const [currentMarker, setCurrentMarker] = useState(null)
-  // const [markers, setMarkers] = useState([{
-  //     id: 0,
-  //     location: {lat: 51.49918363237076, lng: -0.17634013995995976},
-  //     total: 20,
-  //     free: 0,
-  //     available: false
-  //   },{
-  //     id: 1,
-  //     location: {lat: 51.5, lng: -0.169},
-  //     total: 30,
-  //     free: 15,
-  //     available: true
-  // }])
   // lat, lon, lock_postcode, lock_cluster_id, num_lock
   const [markers, setMarkers] = useState([]);
 
