@@ -54,7 +54,7 @@ const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id, username, bike_sn
     }));
     
     client.publish(topic, message);
-    console.log("MQTT Check In Message sent");
+    // console.log("MQTT Check In Message sent: " + message);
 }
 
 // send check out msg via mqtt when user check out

@@ -22,7 +22,8 @@ BROKER_PORT = 1883
 DB_PATH = "../db/es_cw1.db"
 
 # used for grace period checking in between
-USER_CHECKIN_GRACE = 5
+# USER_CHECKIN_GRACE = 5
+USER_CHECKIN_GRACE = 0.1 # Testing
 LOCK_MUTEX = {}
 
 # callbacks
@@ -67,10 +68,13 @@ def on_message(client, userdata, message):
     dt_string = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # stay duration is also a useful thing
-    stay_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
-    stay_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
-    stay_duration = stay_end - stay_start
-    stay_duration = int(stay_duration.total_seconds())
+    if state['lock_time'] is not None:
+        stay_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
+        stay_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
+        stay_duration = stay_end - stay_start
+        stay_duration = int(stay_duration.total_seconds())
+    else: 
+        stay_duration = 0
 
     sql_update_usage_param = {
         'occupied': state['occupied'],
@@ -104,7 +108,16 @@ def on_message(client, userdata, message):
                 "In message received while lock still occupied. Updated lock_time.")
             
             # Update lock_time in OU
-            to_update_overall_usage = True
+            # to_update_overall_usage = True
+            sql = '''
+                UPDATE overall_usage SET in_time = {}
+                WHERE transaction_sn={};
+                '''.format( dt_string, state['ouid'] )
+            print("Updating overall_usage table with query:\n", sql)
+            with con:
+                con.execute(sql)
+            
+            print("Updated overall_usage table.")
 
             # Update lock_time in CU
             sql_update_usage_param['lock_time'] = dt_string
@@ -125,7 +138,7 @@ def on_message(client, userdata, message):
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            assert False, 'RPi \'In\' response error state'
+            print('RPi \'In\' response error state')
         
     elif subtopics[4] == 'out':
         # Event 3 - RPi reports that something has left lock
@@ -147,7 +160,7 @@ def on_message(client, userdata, message):
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            assert False, 'RPi \'Out\' response error state'
+            print('RPi \'Out\' response error state')
 
     elif subtopics[4] == 'checkin':
         # Event 2 - User checks in from JS
@@ -155,7 +168,7 @@ def on_message(client, userdata, message):
             # State A, the start state
             print(subtopics[1], subtopics[2], subtopics[3], "State A->B at time", payload['timestamp'])
             # ! Starts a timer to reset back to State A after a while.
-            Timer(USER_CHECKIN_GRACE*60, checkin_timeout_fn, args=(con, subtopics[1], subtopics[2], subtopics[3])).start()
+            Timer(USER_CHECKIN_GRACE*60, checkin_timeout_fn, args=(subtopics[1], subtopics[2], subtopics[3])).start()
             
             # update username, bike_sn, lock_time in CU
             sql_update_usage_param['username'] = payload['username'] \
@@ -177,10 +190,7 @@ def on_message(client, userdata, message):
             # define check in grace period as 5 minutes
             timestamp_match = time_duration.total_seconds() < 60*USER_CHECKIN_GRACE
 
-            ouid_match = check_ouid(con, 
-                                sql_update_usage_param['ouid'],
-                                sql_update_usage_param['username']
-                                    )
+            ouid_match = check_ouid(con, state['ouid'], payload['username'] )
 
             if timestamp_match or ouid_match:
                 # Timestamps match, further update the usage table
@@ -189,7 +199,6 @@ def on_message(client, userdata, message):
                 # Arm RPi alarm
                 send_alarm_msg(subtopics, True)
 
-                # update username, bike_sn in OU
                 # update username, bike_sn in CU
                 if 'username' in payload:
                     sql_update_usage_param['username'] = payload['username'] \
@@ -199,22 +208,40 @@ def on_message(client, userdata, message):
                         if payload['bike_sn'] != '' else None
                 to_update_curr_usage = True
 
+                # update username, bike_sn in OU
+                # to_update_overall_usage = True
+                sql = '''
+                    UPDATE overall_usage SET username = {}, bike_sn = {}
+                    WHERE transaction_sn={};
+                    '''.format(
+                        'NULL' if sql_update_usage_param['username'] is None 
+                            else "\'"+sql_update_usage_param['username']+"\'",
+                        'NULL' if sql_update_usage_param['bike_sn'] is None 
+                            else sql_update_usage_param['bike_sn'], 
+                        state['ouid'] 
+                        )
+                print("Updating overall_usage table with query:\n", sql)
+                with con:
+                    con.execute(sql)
+                print("Updated overall_usage table.")
+
             else:
                 # Timestamps don't match, user association fails, db not updated.
-                print(subtopics[1], subtopics[2], subtopics[3], "State C->C at time", payload['timestamp'])
+                print(subtopics[1], subtopics[2], subtopics[3], "State C->C at time", payload['timestamp'], "Timestamp_match", timestamp_match, "OUID_Match", ouid_match)
                 # TODO warn client (on MQTT channel?)
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            assert False, 'Client \'Checkin\' response error state'
+            print('Client \'Checkin\' response error state')
 
     elif subtopics[4] == 'checkout':
         # Event 4 - User checks out from JS
         if state['username'] and state['lock_time'] and state['occupied']:
             # State E, the checkout state
             print(subtopics[1], subtopics[2], subtopics[3], "State D->C at time", payload['timestamp'])
-            # update (remove) username from CU
+            # update (remove) username, bike_sn from CU
             sql_update_usage_param['username'] = None
+            sql_update_usage_param['bike_sn'] = None
             to_update_curr_usage = True
             
             # Disarm Rpi Alarm
@@ -223,7 +250,7 @@ def on_message(client, userdata, message):
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            assert False, 'Client \'Checkout\' response error state'
+            print('Client \'Checkout\' response error state')
 
     elif subtopics[4] == 'report':
         # Event 5 - User confirms that their bike has been stolen.
@@ -244,7 +271,7 @@ def on_message(client, userdata, message):
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            assert False, 'Client \'Report\' response error state'
+            print('Client \'Report\' response error state')
     
     elif subtopics[4] == 'stolen':
         # Event 6 - RPi reports bike is stolen
@@ -264,7 +291,7 @@ def on_message(client, userdata, message):
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            assert False, 'Client \'Report\' response error state'
+            print('Client \'Report\' response error state')
 
     elif subtopics[4] == 'telemetry':
         # RPi reports regular telemetry data
@@ -275,13 +302,8 @@ def on_message(client, userdata, message):
         print(subtopics[1], subtopics[2], subtopics[3], "Got unexpected topic", message.topics)
         
     assert not (to_insert_overall_usage and to_update_overall_usage), "Should not update and insert overall usage simultaneously"
-    if to_insert_overall_usage:
-        # calculate stay duration by comparing times
-        stay_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
-        stay_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
-        stay_duration = stay_end - stay_start
-        stay_duration = int(stay_duration.total_seconds())
-        
+    
+    if to_insert_overall_usage:        
         sql = '''
             INSERT INTO overall_usage
             (lock_postcode, lock_cluster_id, lock_id, 
@@ -290,8 +312,8 @@ def on_message(client, userdata, message):
         '''.format(
             "\'"+subtopics[1]+"\'", subtopics[2], subtopics[3], 
             'NULL' if sql_update_usage_param['username'] is None else "\'"+sql_update_usage_param['username']+"\'",
-            'NULL' if sql_update_usage_param['bike_sn'] is None else "\'"+sql_update_usage_param['bike_sn']+"\'",
-            "\'"+state['lock_time']+"\'"
+            'NULL' if sql_update_usage_param['bike_sn'] is None else sql_update_usage_param['bike_sn'],
+            "\'"+sql_update_usage_param['lock_time']+"\'"
         )
         print("Inserting into overall_usage table with query:\n", sql)
         with con:
@@ -303,28 +325,21 @@ def on_message(client, userdata, message):
         sql = "SELECT last_insert_rowid();"
         cursor = con.cursor()
         cursor.execute(sql)
-        records = cursor.fetchall()
+        records = cursor.fetchall()[0]
         print("Fetched last-inserted OUID as", records)
         sql_update_usage_param['ouid'] = records[0]     # it should only return one thing
 
     elif to_update_overall_usage:
+        # sql_..param is overwritten, (to update curr_usage) so we read from state instead
         sql = '''
             UPDATE overall_usage SET
-            in_time = {},
             stay_duration = {},
-            remark = {},
-            username = {},
-            bike_sn = {},
+            remark = {}
             WHERE transaction_sn={};
         '''.format(
-            sql_update_usage_param['lock_time'],
             sql_update_usage_param['stay_duration'],
             sql_update_usage_param['remark'],
-            'NULL' if sql_update_usage_param['username'] is None 
-                else "\'"+sql_update_usage_param['username']+"\'",
-            'NULL' if sql_update_usage_param['bike_sn'] is None 
-                else "\'"+sql_update_usage_param['bike_sn']+"\'",
-            sql_update_usage_param['ouid']
+            state['ouid']
         )
         print("Updating overall_usage table with query:\n", sql)
         with con:
@@ -340,7 +355,7 @@ def on_message(client, userdata, message):
           expected_departure_time = {},
           username = {},
           bike_sn = {},
-          ouid = {},
+          ouid = {}
           WHERE lock_postcode=\'{}\'
           AND lock_cluster_id={}
           AND lock_id={};
@@ -353,7 +368,7 @@ def on_message(client, userdata, message):
             'NULL' if sql_update_usage_param['username'] is None 
                 else "\'"+sql_update_usage_param['username']+"\'",
             'NULL' if sql_update_usage_param['bike_sn'] is None 
-                else "\'"+sql_update_usage_param['bike_sn']+"\'",
+                else sql_update_usage_param['bike_sn'],
             'NULL' if sql_update_usage_param['ouid'] is None else sql_update_usage_param['ouid'],
             subtopics[1],
             subtopics[2],
@@ -400,27 +415,40 @@ def check_ouid(con, ouid, username):
         '''.format(ouid)
     with con:
         data = con.execute(q, [])
-        data = data.fetchall()[0]
+        data = data.fetchall()[0][0]
+        print("Fetched", data, "from overall_usage while checking for ouid", ouid, "username", username)
 
     return data == username     # only pass if username in the ouid is same as provided
 
 # Removes username and lock_time from CU table, shifting from state B->A due to a timeout
-def checkin_timeout_fn(con, lock_postcode, lock_cluster_id, lock_id):
+def checkin_timeout_fn(lock_postcode, lock_cluster_id, lock_id):
     lock_name = '/'.join([lock_postcode, lock_cluster_id, lock_id])
-    if not (LOCK_MUTEX[lock_name]==True):
-        query = '''
-                UPDATE current_usage SET occupied = 0,
-                lock_time = NULL,
-                WHERE lock_postcode=\'{}\'
-                AND lock_cluster_id={}
-                AND lock_id={};
-                '''.format(lock_postcode, lock_cluster_id, lock_id)
-        print("Querying curr_usage with query:\n", query)
-        with con:
-            con.execute(query)
-        print(lock_postcode, lock_cluster_id, lock_id, "State B->A")
+    con = sl.connect(DB_PATH)
+
+    # check what state we are in
+    state = check_curr_usage(con, lock_postcode, lock_cluster_id, lock_id)
+    if state['username'] and state['lock_time'] and not state['occupied']:
+        # In state B, revert out of it
+        if not (LOCK_MUTEX[lock_name]==True) or not (lock_name in LOCK_MUTEX):
+            query = '''
+                    UPDATE current_usage SET occupied = 0,
+                    username = NULL,
+                    bike_sn = NULL,
+                    lock_time = NULL
+                    WHERE lock_postcode=\'{}\'
+                    AND lock_cluster_id={}
+                    AND lock_id={};
+                    '''.format(lock_postcode, lock_cluster_id, lock_id)
+            print("Querying curr_usage with query:\n", query)
+            with con:
+                con.execute(query)
+            print(lock_postcode, lock_cluster_id, lock_id, "State B->A")
+            
+            # TODO checkin fail
+        else:
+            print(lock_postcode, lock_cluster_id, lock_id, "is locked. Not modifying its state.")
     else:
-        print(lock_postcode, lock_cluster_id, lock_id, "is locked. Not modifying its state.")
+        print(lock_postcode, lock_cluster_id, lock_id, "no longer in state B. Not modifying its state.")
 
 
 def send_alarm_msg(subtopics, onoff: Boolean):
@@ -443,7 +471,13 @@ if __name__ == "__main__":
     # client.tls_set(ca_certs='./auth/ca/ca.crt', certfile='./auth/client/client.crt', keyfile='./auth/client/client.key', tls_version=ssl.PROTOCOL_TLSv1_2)
     print(CLIENT_NAME, "connect", mqtt.error_string(status))    # Error handling
 
-    client.subscribe(BASE_TOPIC+"/+/+/+/+")
+    client.subscribe(BASE_TOPIC+"/+/+/+/in")
+    client.subscribe(BASE_TOPIC+"/+/+/+/out")
+    client.subscribe(BASE_TOPIC+"/+/+/+/checkin")
+    client.subscribe(BASE_TOPIC+"/+/+/+/checkout")
+    client.subscribe(BASE_TOPIC+"/+/+/+/stolen")
+    client.subscribe(BASE_TOPIC+"/+/+/+/report")
+    client.subscribe(BASE_TOPIC+"/+/+/+/telemetry")
 
     # add client callbacks
     client.on_message = on_message
