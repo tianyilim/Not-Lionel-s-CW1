@@ -52,7 +52,7 @@ class MessageHandler:
 
         So there is no need to send anything other than a timestamp in the message body.
         '''
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         msg = { "timestamp"  : timestamp } # dump json object into string
         msg = bytes(json.dumps(msg), 'utf-8') 
@@ -68,7 +68,7 @@ class MessageHandler:
         '''Sends regular accelerometer data to the server for anomaly detection purposes.
         payload is a 2D list of float accel data. (not numpy array!)
         '''
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         # if payload is a np array, first run .to_list() on it.
         msg = {"timestamp" : timestamp,
