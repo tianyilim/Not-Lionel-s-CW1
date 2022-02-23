@@ -3,7 +3,7 @@ const express = require("express");
 const react = express();
 react.use(express.json());
 react.listen(3001, () => console.log("listening at port 3000"));
-// react.use(express.static("/public"));
+react.use(express.static("public"));
 
 // MQTT
 const mqtt = require('mqtt');
@@ -79,7 +79,6 @@ const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
     console.log("MQTT Check Out Message Send")
 }
 
-const express = require("express");
 const app = express();
 const cors = require('cors');
 app.use(express.json());
