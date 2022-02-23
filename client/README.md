@@ -16,31 +16,36 @@ A webpage would be hosted on `http://localhost:3000/`. This is currently still i
 The webpage would show a map of the surrounding of the user's location with markers on bicycle lock clusters. A green pin indicates availability while a red pin indicates that all locks are used. <br/>
 ![image](img/map_markers.PNG)
 <br/>
-Upon clicking onto the pin, details about the lock would be shown, including name, total locks and available locks. <br/>
+Upon clicking onto the pin, details about the lock would be shown, including name, total locks and available locks. Positions of the locks/pins are fetched upon loading the webpage.  <br/>
 ![image](img/map_w_details.PNG)
 <br/>
-
-Positions of the locks/pins are fetched upon loading the webpage (TODO)
+Clicking on the "Check In" button would direct user to the Check In page with pre-filled Postcode and CLuster ID. <br/>
+![image](img/check_in_prefilled.PNG)
+<br/>
 
 ### Check In / Check Out Page
 The check in page has 3 text boxes for user to fill in the Serial Key number (Postcode-Cluster ID-ID) and a button to submit check in request. Upon checking in, information on the Lock Serial Key will be send across HTTP to the server on `http://localhost:5000/checkin` <br/>
 ![image](img/check_in_out.PNG) <br/>
 
-User have to check out the bicycle on the webpage before removing the bike, by the red "Check Out" button. 
+User have to check out the bicycle on the webpage before removing the bike, by the red "Check Out" button. <br/>
 ![image](img/check_out.PNG) <br/>
 
 The state of whether the user has checked into a lock is fetched on load of the page.
 
 <br/>
 
+### Prompt Login Page
+When user trying to access to the Check In and Profile (TBD) Page without login, they would be prompted to login. Clicking onto the "Sign In" button would direct user to the Login Page. <br/>
+![image](img/prompt_login.PNG) <br/>
+
 ### Login Page
 Allow user to login into their account. <br/>
 ![image](img/login.PNG) <br/>
-Upon login, credentials will be sent to the server via HTTP for check. Upon successful login, username would be stored in the session.
+Upon login, credentials will be sent to the server via HTTP for check. Upon successful login, username would be stored in the session. User will then be redirected to the page before being prompted to login.
 <br/>
 
-### Register Page
-Allow users to register into the system by filling in information such as full name, username, email address and passward.
+### Register Page (TBD)
+Allow users to register into the system by filling in information such as full name, username, email address and passward. <br/>
 ![image](img/register.PNG)
 <br/>
 
@@ -58,7 +63,7 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
    - user can add bike serial number
    - register
 5. Add analytics
-6. Check in Page default bike SN
+
 
 ## Change Log
 27-Jan-2022 : initial commit <br/>
@@ -66,3 +71,4 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
 12-Feb-2022 : added check in out + register page. added router. <br/>
 17-Feb-2022 : added HTTP communication with server on check in out page. <br/>
 22-Feb-2022 : updated state machine + added login page with simple login authentication + query string in checkin page + bike serial number. <br/>
+22-Feb-2022 : added checkin comfirmation + state machine done with the server. <br/>

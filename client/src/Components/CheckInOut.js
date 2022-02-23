@@ -40,7 +40,6 @@ function CheckInOut({getToken, setReturn}) {
         }).then(response => response.json())
         .then(response => {
             if (response.state) setChecked(true);
-            // TODO: warn unsuccessful
             else {
                 alert("Unsuccessfuly Login \nError: " + response.msg);
             }
@@ -121,28 +120,8 @@ function CheckInOut({getToken, setReturn}) {
         // check if event.target.value meets the serial key format
         setTmpSerialKeyID(event.target.value);
     };
-    
-    // keep checking for udpates to see is user authentication needed
-    // const [auth,setAuth] = useState(false);
-    // const update = async() => {
-    //     const msg = {
-    //         user: usrname
-    //     };
-    //     fetch('http://localhost:5000/usrauthen',{
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-type': 'application/json',
-    //         },
-    //         body: JSON.stringify(msg),
-    //     }).then(response => response.json())
-    //     .then(response => {
-    //         setAuth(response.state);
-    //     })
-    // }
 
     const intial_fetch = () => {
-        // console.log("initial fetch")
-
         const msg = {
             username: usrname
         };
@@ -156,14 +135,13 @@ function CheckInOut({getToken, setReturn}) {
         .then(response => {
             setChecked(response.checked);
             if (response.checked) {
-                console.log(response)
                 setSerialKey({
                     PostCode: response.postcode,
                     Cluster: response.cluster,
                     ID: response.id,
                 });
                 setBicycleSN(response.bike_sn)
-            }
+            } 
         })
 
         fetch('http://localhost:5000/usrbike',{
@@ -179,9 +157,7 @@ function CheckInOut({getToken, setReturn}) {
     }
 
     useEffect(() => {
-        // update();
         intial_fetch();
-        // setInterval(update,1000)
     },[])
 
 
@@ -232,11 +208,12 @@ function CheckInOut({getToken, setReturn}) {
                         paddingLeft: '5px',
                         color: '#707070'
                     }}
-                    defaultValue={bicycleSN}
+                    // defaultValue={bicycleSN}
+                    value={bicycleSN}
                     onChange={ (event) => setBicycleSN(event.target.value) }
                     disabled={checked}
                 >
-                    <option value=''  disabled hidden>Bicycle</option>
+                    <option value='' disabled hidden>Bicycle</option>
                     {bicycle.map((item,index) => {
                         return(
                             <option key={index} value={item.bike_sn}>{item.bike_name}</option>
