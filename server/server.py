@@ -15,8 +15,8 @@ from threading import Timer
 # MQTT Parameteters
 CLIENT_NAME = "server_py"
 BASE_TOPIC = "ic_embedded_group_4"
-BROKER_IP = "localhost"
-BROKER_PORT = 1883
+BROKER_IP = "35.178.122.34"
+BROKER_PORT = 8883
 
 # SQL parameters
 DB_PATH = "../db/es_cw1.db"
@@ -213,24 +213,11 @@ def on_message(client, userdata, message):
                 to_update_curr_usage = True
 
                 # update username, bike_sn in OU
-                # to_update_overall_usage = True
-                # sql = '''
-                #     UPDATE overall_usage SET username = {}, bike_sn = {}
-                #     WHERE transaction_sn={};
-                #     '''.format(
-                #         'NULL' if sql_update_usage_param['username'] is None 
-                #             else "\'"+sql_update_usage_param['username']+"\'",
-                #         'NULL' if sql_update_usage_param['bike_sn'] is None 
-                #             else sql_update_usage_param['bike_sn'], 
-                #         state['ouid'] 
-                #         )
-                # print("Updating overall_usage table with query:\n", sql)
                 sql = '''
                     UPDATE overall_usage SET username=?, bike_sn=?
                     WHERE transaction_sn=?;
                     '''
                 with con:
-                    # con.execute(sql)
                     con.execute(sql, [
                         sql_update_usage_param['username'],
                         sql_update_usage_param['bike_sn'],
@@ -317,32 +304,14 @@ def on_message(client, userdata, message):
         
     assert not (to_insert_overall_usage and to_update_overall_usage), "Should not update and insert overall usage simultaneously"
     
-    if to_insert_overall_usage:        
-        # sql = '''
-        #     INSERT INTO overall_usage
-        #     (lock_postcode, lock_cluster_id, lock_id, 
-        #     username, bike_sn, in_time)
-        #     VALUES ({}, {}, {}, {}, {}, {});
-        # '''.format(
-        #     "\'"+subtopics[1]+"\'", subtopics[2], subtopics[3], 
-        #     'NULL' if sql_update_usage_param['username'] is None else "\'"+sql_update_usage_param['username']+"\'",
-        #     'NULL' if sql_update_usage_param['bike_sn'] is None else sql_update_usage_param['bike_sn'],
-        #     "\'"+sql_update_usage_param['lock_time']+"\'"
-        # )
-        # print("Inserting into overall_usage table with query:\n", sql)
+    if to_insert_overall_usage:
         sql = '''
             INSERT INTO overall_usage
             (lock_postcode, lock_cluster_id, lock_id, 
             username, bike_sn, in_time)
             VALUES (?, ?, ?, ?, ?, ?);
-        '''.format(
-            "\'"+subtopics[1]+"\'", subtopics[2], subtopics[3], 
-            'NULL' if sql_update_usage_param['username'] is None else "\'"+sql_update_usage_param['username']+"\'",
-            'NULL' if sql_update_usage_param['bike_sn'] is None else sql_update_usage_param['bike_sn'],
-            "\'"+sql_update_usage_param['lock_time']+"\'"
-        )
+        '''
         with con:
-            # con.execute(sql)
             con.execute(sql, [
                 subtopics[1], subtopics[2], subtopics[3],
                 sql_update_usage_param['username'],
@@ -360,25 +329,12 @@ def on_message(client, userdata, message):
         sql_update_usage_param['ouid'] = records[0]     # it should only return one thing
 
     elif to_update_overall_usage:
-        # sql_..param is overwritten, (to update curr_usage) so we read from state instead
-        # sql = '''
-        #     UPDATE overall_usage SET
-        #     stay_duration = {},
-        #     remark = {}
-        #     WHERE transaction_sn={};
-        # '''.format(
-        #     sql_update_usage_param['stay_duration'],
-        #     sql_update_usage_param['remark'],
-        #     state['ouid']
-        # )
-        # print("Updating overall_usage table with query:\n", sql)
         sql = '''
             UPDATE overall_usage SET
             stay_duration=?, remark=?
             WHERE transaction_sn=?;
         '''
         with con:
-            # con.execute(sql)
             con.execute(sql, [
                 sql_update_usage_param['stay_duration'],
                 sql_update_usage_param['remark'],
@@ -387,33 +343,6 @@ def on_message(client, userdata, message):
         print("Updated overall_usage table with stay_duration and remark.")
 
     if to_update_curr_usage:
-        # sql = '''
-        #   UPDATE current_usage SET
-        #   occupied = {},
-        #   lock_time = {},
-        #   expected_departure_time = {},
-        #   username = {},
-        #   bike_sn = {},
-        #   ouid = {}
-        #   WHERE lock_postcode=\'{}\'
-        #   AND lock_cluster_id={}
-        #   AND lock_id={};
-        # '''.format(
-        #     sql_update_usage_param['occupied'],
-        #     'NULL' if not sql_update_usage_param['lock_time'] 
-        #         else "\'"+sql_update_usage_param['lock_time']+"\'",    # add quotes only around string
-        #     'NULL' if sql_update_usage_param['expected_departure_time'] is None 
-        #         else "\'"+sql_update_usage_param['expected_departure_time']+"\'",
-        #     'NULL' if sql_update_usage_param['username'] is None 
-        #         else "\'"+sql_update_usage_param['username']+"\'",
-        #     'NULL' if sql_update_usage_param['bike_sn'] is None 
-        #         else sql_update_usage_param['bike_sn'],
-        #     'NULL' if sql_update_usage_param['ouid'] is None else sql_update_usage_param['ouid'],
-        #     subtopics[1],
-        #     subtopics[2],
-        #     subtopics[3]
-        # ) 
-        # print("Updating current_usage table with query:\n", sql)
         sql = '''
           UPDATE current_usage SET
           occupied = ?,
@@ -427,7 +356,6 @@ def on_message(client, userdata, message):
           AND lock_id=?;
         '''
         with con:
-            # con.execute(sql)
             con.execute(sql, [
                 sql_update_usage_param['occupied'],
                 sql_update_usage_param['lock_time'],    # add quotes only around string
@@ -449,19 +377,12 @@ def on_message(client, userdata, message):
     print() # newlines for clearer status
 
 def check_curr_usage(con, lock_postcode, lock_cluster_id, lock_id):
-    # query = '''
-    #         SELECT occupied, username, bike_sn, lock_time, ouid FROM current_usage
-    #         WHERE lock_postcode=\'{}\'
-    #         AND lock_cluster_id={}
-    #         AND lock_id={};
-    #         '''.format(lock_postcode, lock_cluster_id, lock_id)    
     query = '''
         SELECT occupied, username, bike_sn, lock_time, ouid FROM current_usage
         WHERE lock_postcode=?
         AND lock_cluster_id=?
         AND lock_id=?;
         '''
-    # print("Querying curr_usage with query:\n", query)
     with con:
         data = con.execute(query, [lock_postcode, lock_cluster_id, lock_id])
         data = data.fetchall()[0] # This returns a tuple in a list for some reason...
@@ -503,8 +424,6 @@ def checkin_timeout_fn(lock_postcode, lock_cluster_id, lock_id):
                     AND lock_cluster_id=?
                     AND lock_id=?;
                     '''
-                    # '''.format(lock_postcode, lock_cluster_id, lock_id)
-            # print("Querying curr_usage with query:\n", query)
             with con:
                 con.execute(query, [lock_postcode, lock_cluster_id, lock_id])
             print(lock_postcode, lock_cluster_id, lock_id, "State B->A")
@@ -542,8 +461,13 @@ if __name__ == "__main__":
         exit(1)
         
     client = mqtt.Client(CLIENT_NAME)                           # Create client object
+    if True:
+        client.username_pw_set("user", password="user")             # Set username and password
+        client.tls_set(ca_certs='../comms/auth/ca.crt', tls_version=ssl.PROTOCOL_TLSv1_2)
+    else:
+        BROKER_IP = "localhost"
+        BROKER_PORT = 1883
     status = client.connect(BROKER_IP, port=BROKER_PORT)        # Connect to MQTT broker
-    # client.tls_set(ca_certs='./auth/ca/ca.crt', certfile='./auth/client/client.crt', keyfile='./auth/client/client.key', tls_version=ssl.PROTOCOL_TLSv1_2)
     print(CLIENT_NAME, "connect", mqtt.error_string(status))    # Error handling
 
     client.subscribe(BASE_TOPIC+"/+/+/+/in")

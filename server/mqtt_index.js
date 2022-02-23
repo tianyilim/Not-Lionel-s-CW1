@@ -6,10 +6,16 @@ const mqtt_options = {
     connectTimeout: 4000,
     // Auth
     clientId: 'js_server',
+    username:'user',
+    password:'user',
+
+    ca: '../comms/auth/ca.crt'
 }
 
+const mqtt_address = 'mqtt://35.178.122.34:8883'    // secure
+
 // On connecting to server
-const client  = mqtt.connect('mqtt://localhost:1883', mqtt_options)
+const client  = mqtt.connect(mqtt_address, mqtt_options)
 client.on('connect', function () {
   console.log('JS Server connecting to MQTT Broker')
   client.subscribe('ic_embedded_group_4/+/+/+/checkinresponse', function (err) {
