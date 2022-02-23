@@ -7,6 +7,7 @@ import json
 import datetime
 from socket import gethostname
 import queue
+import ssl
 
 # @sherwin python indent is 4 pls lolol
 LOCK_POSTCODE = "SW7 2AZ"   # These parameters will be baked in at install-time
@@ -14,17 +15,22 @@ LOCK_CLUSTER_ID = 1
 LOCK_ID = 1
 CLIENT_ID = "{}:{}_{}_{}".format(gethostname(), LOCK_POSTCODE, LOCK_CLUSTER_ID, LOCK_ID)
 BASE_TOPIC = "ic_embedded_group_4/{}/{}/{}".format(LOCK_POSTCODE, LOCK_CLUSTER_ID, LOCK_ID)
-BROKER_IP = "localhost"
-BROKER_PORT = 1883          # This will change to 8883 when we figure out TLS
+BROKER_IP = "35.178.122.34"         # AWS IP
+BROKER_PORT = 8883                  # MQTT Secure Port
 
 # TODO periodically sync time with online, so that timestamps are accurate!
 
 class MessageHandler:
     def __init__(self):
-        self.client = mqtt.Client(client_id=CLIENT_ID)              # client object
-        status = self.client.connect(BROKER_IP, port=BROKER_PORT)   # connect to server
-        print(mqtt.error_string(status))                            # error handling
-        self.client.subscribe(BASE_TOPIC+"/alarm")                 # sub to incoming messages
+        client = mqtt.Client(CLIENT_ID)                           # Create client object
+        client.username_pw_set("user", password="user")             # Set username and password
+        client.tls_set(ca_certs='../comms/auth/ca.crt', tls_version=ssl.PROTOCOL_TLSv1_2)
+        # Assume that you are running this from this directory.
+
+        status = client.connect(BROKER_IP, port=BROKER_PORT)        # Connect to MQTT broker
+        print(CLIENT_ID, "connect", mqtt.error_string(status))    # Error handling
+
+        client.subscribe(BASE_TOPIC+"/alarm")   # you need to listen to Alarm                # sub to incoming messages
         self.client.on_message = self.__alarm_callback            # bind callback to checkin
         self.alarmQueue = queue.Queue(1)
         self.alarmed = 0
