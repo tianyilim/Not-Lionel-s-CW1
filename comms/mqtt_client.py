@@ -6,7 +6,8 @@ import json
 
 CLIENT_NAME = "Client_" + gethostname()
 TOPIC = "ic_embedded_group_4/test"
-# BROKER = "Broker"   # must match name on Server certificate
+# ADDRESS = 'localhost'
+ADDRESS = '35.178.122.34'
 
 # callbacks
 def on_connect(client, userdata, flags, rc):
@@ -38,8 +39,7 @@ client = mqtt.Client(CLIENT_NAME)                           # Create client obje
 if True:
     client.username_pw_set("user", password="user")             # Set username and password
     client.tls_set(ca_certs='./auth/ca.crt', tls_version=ssl.PROTOCOL_TLSv1_2)
-    client.tls_insecure_set(True)
-    status = client.connect('35.178.122.34', port=8883)             # Connect to MQTT broker
+    status = client.connect(ADDRESS, port=8883)             # Connect to MQTT broker
 else:
     status = client.connect('localhost', port=1883)             # Connect to MQTT broker
 

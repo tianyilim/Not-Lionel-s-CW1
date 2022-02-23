@@ -6,6 +6,8 @@ import json
 
 CLIENT_NAME = "Server_" + gethostname()
 TOPIC = "ic_embedded_group_4/test"
+# ADDRESS = 'localhost'
+ADDRESS = '35.178.122.34'
 
 # callbacks
 def on_connect(client, userdata, flags, rc):
@@ -36,9 +38,8 @@ def on_message(client, userdata, message):
 server = mqtt.Client(CLIENT_NAME)                               # Create client object
 if True:
     server.username_pw_set("user", password="user")                 # Set username and password
-    server.tls_set(ca_certs='./auth/ca.crt', tls_version=2)
-    server.tls_insecure_set(True)                                   # This is still needed! Why?
-    status = server.connect('35.178.122.34', port=8883)             # Connect to MQTT broker
+    server.tls_set(ca_certs='./auth/ca.crt', tls_version=ssl.PROTOCOL_TLSv1_2)
+    status = server.connect(ADDRESS, port=8883)             # Connect to MQTT broker
 else:
     status = server.connect('localhost', port=1883)             # Connect to MQTT broker
 
