@@ -10,6 +10,8 @@ LOCK_CLUSTER_ID = 1
 LOCK_ID = 1
 CLIENT_NAME = "RPI_/{}/{}/{}".format(LOCK_POSTCODE, LOCK_CLUSTER_ID, LOCK_ID)
 BASE_TOPIC = "ic_embedded_group_4/{}/{}/{}".format(LOCK_POSTCODE, LOCK_CLUSTER_ID, LOCK_ID)
+BROKER_IP = "35.178.122.34"
+BROKER_PORT = 8883
 
 # callbacks
 def on_connect(client, userdata, flags, rc):
@@ -38,7 +40,9 @@ def on_message(client, userdata, message):
     # client.publish(BASE_TOPIC, bytes(reply, 'utf-8'))
 
 client = mqtt.Client(CLIENT_NAME)                           # Create client object
-status = client.connect("localhost", port=1883)             # Connect to MQTT broker
+client.username_pw_set("user", password="user")             # Set username and password
+client.tls_set(ca_certs='../comms/auth/ca.crt', tls_version=ssl.PROTOCOL_TLSv1_2)
+status = client.connect(BROKER_IP, port=BROKER_PORT)             # Connect to MQTT broker
 print(CLIENT_NAME, "connect", mqtt.error_string(status))    # Error handling
 
 # add client callbacks
