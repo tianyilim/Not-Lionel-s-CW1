@@ -437,7 +437,7 @@ def checkin_timeout_fn(lock_postcode, lock_cluster_id, lock_id):
         print(lock_postcode, lock_cluster_id, lock_id, "no longer in state B. Not modifying its state.")
 
 
-def send_alarm_msg(subtopics, onoff: Boolean):
+def send_alarm_msg(subtopics, onoff):
     alarm_topic = ('/'.join( subtopics[:-1]+['alarm'] ))
     msg = {'status' : onoff}
     print("Publishing", msg, "on", alarm_topic)
@@ -445,7 +445,7 @@ def send_alarm_msg(subtopics, onoff: Boolean):
     msg = bytes(json.dumps(msg), 'utf-8')
     client.publish(alarm_topic, msg)
 
-def send_checkin_response(subtopics, status: Boolean, message: str=''):
+def send_checkin_response(subtopics, status, message: str=''):
     topic = ('/'.join( subtopics[:-1]+['checkinresponse'] ))
     msg = {'status': status, 'message': message}
     print("Publishing", msg, "on", topic)
