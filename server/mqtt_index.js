@@ -1,18 +1,38 @@
-const mqtt = require('mqtt');
+// setting up web-app
+const express = require("express");
+const react = express();
+react.use(express.json());
+react.listen(3001, () => console.log("listening at port 3000"));
+react.use(express.static("public"));
 
+// FileSync
+const fs = require ('fs');
+
+// MQTT
+const mqtt = require('mqtt');
 const mqtt_options = {
     // Clean session
     clean: true,
     connectTimeout: 4000,
     // Auth
     clientId: 'js_server',
+    username:'user',
+    password:'user',
+
+    protocol: 'mqtts',
+    ca: fs.readFileSync('../comms/auth/ca.crt'),
+    rejectUnauthorized: true,
+    minVersion: 'TLSv1.2',
 }
 
+const mqtt_address = 'mqtts://35.178.122.34:8883'    // secure
+
 // On connecting to server
-const client  = mqtt.connect('mqtt://localhost:1883', mqtt_options)
+const client  = mqtt.connect(mqtt_address, mqtt_options)
 client.on('connect', function () {
   console.log('JS Server connecting to MQTT Broker')
-  client.subscribe('ic_embedded_group_4/+/+/+/out', function (err) {
+  // subscribe to checkinresponse
+  client.subscribe('ic_embedded_group_4/+/+/+/checkinresponse', function (err) {
     if (!err) { console.log("JS Server connected to MQTT Broker") }
   })
 })
@@ -25,27 +45,29 @@ let db = new sqlite3.Database("../db/es_cw1.db", sqlite3.OPEN_READWRITE, (err) =
     console.log('JS Server connected to database.');
 });
 
-// listen to lock/out
-// client.on('message', function (topic, message) {
-//     const subtopics = topic.split('/');
+// hacky way to open HTTP channel while waiting for MQTT message
+var desired_msg = '';
+var resp = null;
 
-//     // check that there are 5 subtopics:
-//     // ic_embedded_group_4/lock_postcode/lock_cluster_id/lock_id/TOPIC
-//     console.assert(subtopics.length==5, `Incorrect subtopic format, got ${topic}`)
+client.on('message', function (topic, message) {
+    let payload = JSON.parse(message.toString());
 
-//     let payload = JSON.parse(message.toString());
-//     const timestamp = payload.timestamp;
+    if (resp !== null && desired_msg === topic) {
+        console.log("Received checkin payload", payload);
+        resp.json({state: payload.status, msg: payload.message});
 
-//     console.log("Received message from lock/out");
-
-// })
+        // reset variables
+        desired_msg = '';
+        resp = null;
+    }
+})
 
 const moment = require('moment');
 
 // send check in msg via mqtt when user check in
+// prompt by app.post('/checkin')
 const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id, username, bike_sn) => {
     const topic = 'ic_embedded_group_4/' + lock_postcode + '/' + lock_cluster_id + '/' + lock_id + '/checkin';
-    console.log(topic);
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     const message = Buffer.from(JSON.stringify({
         "timestamp": timestamp,
@@ -54,10 +76,11 @@ const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id, username, bike_sn
     }));
     
     client.publish(topic, message);
-    console.log("MQTT Check In Message sent");
+    console.log("MQTT Check In Message sent at: " + topic + "\n"+ message );
 }
 
 // send check out msg via mqtt when user check out
+// prompt by app.post('/checkout')
 const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
     const topic = 'ic_embedded_group_4/' + lock_postcode + '/' + lock_cluster_id + '/' + lock_id + '/checkout';
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
@@ -69,7 +92,6 @@ const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
     console.log("MQTT Check Out Message Send")
 }
 
-const express = require("express");
 const app = express();
 const cors = require('cors');
 app.use(express.json());
@@ -80,25 +102,16 @@ app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
 app.post('/checkin',(request,response) => {
     var tmp = request.body;
     mqtt_checkin(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id, tmp.user, tmp.bike_sn);
-
-    // TODO : wait for checkin confimration / unsucessful
-    let state = true;
-    response.json({state: state});
+    resp = response;
+    desired_msg = "ic_embedded_group_4/" + tmp.lock_postcode + "/" + tmp.lock_cluster_id.toString() + "/" + tmp.lock_id.toString() + "/checkinresponse";
+  
+    // should there be some timeout thing?
+    // response.json({state: true});  
 })
-
-// prompt check out
-// app.post('/usrauthen',(request,response) => {
-//     var tmp = request.body;
-//     // check does the username matches
-//     response.json({
-//         state: state, // state is tmp
-//     });
-// })
 
 // listen for check out
 app.post('/checkout',(request,response) => {
     var tmp = request.body;
-    // serial key should be stored in the server
     mqtt_checkout(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id);
 
     response.json("Checkout Received");
@@ -108,31 +121,55 @@ app.post('/checkout',(request,response) => {
 app.post('/usrinfo',(request,response) => {
     var tmp = request.body.username;
 
-    // TODO: query SQL
-    const msg = {
-        checked: false,
-        postcode: 'SW72AZ',
-        cluster: 1,
-        id: 1
-    }
+    const sql = `SELECT lock_postcode, lock_cluster_id, lock_id, bike_sn FROM current_usage WHERE username=?;`;
 
-    response.json(msg);
+    db.all(sql, [tmp], (err,row) => {
+        if (err) throw err; 
+        // console.log(row);
+        let msg = {};
+        if (row.length) {
+            let tmp = row[0];
+            msg = {
+                checked: true,
+                postcode: tmp.lock_postcode,
+                cluster: tmp.lock_cluster_id,
+                id: tmp.lock_id,
+                bike_sn: tmp.bike_sn
+            }
+        } else {
+            msg = {
+                checked: false,
+                postcode: '',
+                cluster: 0,
+                id: 0,
+                bike_sn: ''
+            }
+        }
+        response.json(msg);
+    })    
+
+    // for testing
+    // const msg = {
+    //     checked: true,
+    //     postcode: 'SW72AZ',
+    //     cluster: 1,
+    //     id: 1,
+    //     bike_sn: 123
+    // }
+    // response.json(msg);
 })
 
 // return user's bike name + sn
 app.post('/usrbike',(request,response) => {
-    var tmp = request.body.uername;
+    var tmp = request.body.username;
 
-    // TODO: query SQL
-    const msg = [{
-        bike_name: 'hello',
-        bike_sn: '123',
-    },{
-        bike_name: 'world',
-        bike_sn: "456",
-    }]
+    const sql = `SELECT bike_name, bike_sn FROM bicycles WHERE username=?;`;
 
-    response.send(msg);
+    db.all(sql, [tmp], (err,rows) => {
+        if (err) throw err; 
+        // console.log(rows);
+        response.send(rows)
+    })    
 })
 
 // check valid login
@@ -150,13 +187,44 @@ app.post('/login', (request,response) => {
 
 // return marker
 app.get('/locks',(request,response) => {
-    const sql = `SELECT * FROM cluster_coordinates;`;
+    const sql = `SELECT * FROM cluster_coordinates;`
+
+    const try1 = `SELECT * FROM cluster_coordinates
+    WHERE lock_postcode=? 
+    AND lock_cluster_id=?;`
+    
+    // -> lat, lon, lock_postcode, lock_cluster_id, num_lock
+    /*pseudocode:
+        for postcode in lock_postcode:
+            for cluster in lock_cluster_id:
+                `SELECT COUNT(*) FROM current_usage
+                WHERE lock_postcode=?, lock_cluster_id=?, occupied=1;
+                `
+                retval = count of occupied items
+                -> get occupancy based on retval/num_lock
+                -> append to list?
+    */
+    
+    /*
+    `SELECT cluster_coordinates.lock_postcode, cluster_coordinates.lock_cluster_id, cluster_coordinates.num_lock, COUNT(*) FROM current_usage
+    JOIN cluster_coordinates 
+    ON cluster_coordinates.lock_postcode=current_usage.lock_postcode 
+    AND cluster_coordinates.lock_cluster_id=current_usage.lock_cluster_id 
+    WHERE current_usage.occupied=0
+    GROUP BY current_usage.lock_postcode, current_usage.lock_cluster_id;`
+
+    `SELECT DISTINCT COUNT(*)
+    FROM cluster_coordinates INNER JOIN current_usage 
+    ON cluster_coordinates.lock_postcode=current_usage.lock_postcode 
+    AND cluster_coordinates.lock_cluster_id=current_usage.lock_cluster_id 
+    AND current_usage.occupied=0;`
+
+    // IN: postcode, cluster_id
+    // OUT: lat, lon, number of locks(num_lock), available locks/occupied locks
+    */
 
     db.all(sql, [], (err,rows) => {
         if (err) throw err; 
-        // rows.forEach(row => {
-        //     console.log(row);
-        // })  
         response.send(rows);
     })
 

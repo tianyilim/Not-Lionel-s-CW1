@@ -1,6 +1,9 @@
 import { useState, React } from 'react'
+import { useNavigate } from 'react-router-dom';
 
-function LoginPage({setToken}) {
+function LoginPage({setToken, getReturn}) {
+    const navigate = useNavigate();
+
     const [data,setData] = useState({
         username: "",
         pw: "",
@@ -30,7 +33,13 @@ function LoginPage({setToken}) {
             } else {
                 setWrongPw(true);
                 setData({...data, username: ''});
+                return;
             }
+        })
+        .then( () => {
+            let url = getReturn()
+            if (url === null) navigate('/')
+            else navigate(url);
         })
     }
 

@@ -68,7 +68,7 @@ with con:
         CREATE TABLE users (
             username TEXT PRIMARY KEY NOT NULL,
             email TEXT NOT NULL,
-            password_hashed TEXT NOT NULL
+            password_hash TEXT NOT NULL
         );
         """
     )
@@ -109,26 +109,26 @@ data = [item for sublist in data for item in sublist]   # Flatten list of lists
 with con:
     con.executemany(sql, data)
 
-# # For creating new users
-# sql = "INSERT INTO 'USERS' (username, password_hash) values(?, ?);"
-# data = [
-#     ('joe', 123),
-#     ('frank', 123),
-#     ('smith', 123)
-# ]
+# For creating new users
+sql = "INSERT INTO users (username, email, password_hash) values(?, ?, ?);"
+data = [
+    ('abc', 'iamattestvalue@test.com', 123),
+    ('frank', 'iamattestvalue@test.com', 123),
+    ('smith', 'iamattestvalue@test.com', 123)
+]
 
-# with con:
-#     con.executemany(sql, data)
+with con:
+    con.executemany(sql, data)
 
-# sql = 'INSERT INTO BICYCLES (bike_model, bike_serialnum, username) values(?, ?, ?);'
-# data = [
-#     ('carrera subway', '123', 'joe'),
-#     ('specialized aethos', '345', 'frank'),
-#     ('canyon aeroad', '345', 'smith'),
-#     ('triban 500', '345', 'joe'),
-# ]
+sql = 'INSERT INTO bicycles (bike_name, bike_sn, username) values(?, ?, ?);'
+data = [
+    ('carrera subway', 123, 'abc'),
+    ('specialized aethos', 345, 'abc'),
+    ('canyon aeroad', 99, 'smith'),
+    ('triban 500', 464, 'joe'),
+]
 
-# with con: con.executemany(sql, data)
+with con: con.executemany(sql, data)
 
 # # Query for each bicycle ordered by user 
 # with con:

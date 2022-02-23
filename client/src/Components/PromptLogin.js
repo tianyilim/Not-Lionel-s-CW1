@@ -4,7 +4,7 @@ function PromptLogin() {
             Please sign in to view the page
             <br/> <br/> <br/>
             <button>
-                <a href="/profile"
+                <a href="/login"
                     style={{textDecoration: 'none', color: 'black'}}
                 >
                     Sign In

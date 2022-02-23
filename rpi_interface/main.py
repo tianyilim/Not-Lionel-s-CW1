@@ -8,82 +8,92 @@ from time import sleep
 
 class monitor:
 
-  ultrasound_allowance = 3
-  num_ultrasound_measurements = 10
+    ultrasound_allowance = 3
+    num_ultrasound_measurements = 10
+    nobike_threshold = 50
 
-  def __init__(self):
-    # init accelerometer
-    self.accel = AccelerometerSensor()
-    # init ultrasound
-    self.usound = UltrasoundSensor()
-    self.buzzer = Buzzer()
-    self.mh = MessageHandler()
-    self.led = LED()
-    self.led.noBike() # green
-    # modes: 0 - free, 1 - filled (monitor for theft)
-    """
-    States:
-    0 - No bike inserted (free)
-    1 - Bike is inserted
-    2 - Bike wrongfully removed
-    3 - Alarm
-    """
-    self.mode = 0
+    def __init__(self):
+        # init ultrasound
+        self.usound = UltrasoundSensor()
+        self.buzzer = Buzzer()
+        self.mh = MessageHandler()
+        self.led = LED()
 
-  def collectMeasurements(self, num_measurements):
-    measurement = 0
-    for i in range(num_measurements):
-      measurement += self.usound.read()
-    return measurement / num_measurements
+        """
+        States:
+        0 - Start
+        1 - No bike inserted
+        2 - Bike inserted (monitoring)
+        3 - Alarm
+        """
+        self.mode = 0
+        self.currDistance = 0
 
-  def calibrateUltrasound(self):
-    self.bike_distance = self.collectMeasurements(self.num_ultrasound_measurements)
-    print("Bike inserted at ", self.bike_distance, "cm")
+    '''
+    mode 0:
+    Take measurements to get to next state
+    '''
+    def noBikeInit(self):
+        dist = self.collectMeasurements(self.num_ultrasound_measurements)
+        if dist < self.nobike_threshold :
+            print("Initial d: ", dist)
+            self.currDistance = dist
+            self.led.noBike()
+            self.mode = 1
 
-  def newBike(self):
-    if self.mode == 0:
-      self.calibrateUltrasound()
-      self.buzzer.play('inserted')
-      self.led.hasBike() # orange
-      self.mode = 1
-    else:
-      # TODO
-      print("Error: device locked with another bike")
-  
-  def releaseBike(self):
-    if self.mode == 1:
-      self.buzzer.play('removed')
-      self.led.noBike() # green
-      self.bike_distance = 0
-      self.mode = 0
-    else:
-      # TODO
-      print("Error: device already unlocked")
+    '''
+    mode 1
+    Check if distance has decreased meaning bike is inserted
+    '''
+    def waitForBike(self):
+        dist = self.collectMeasurements(self.num_ultrasound_measurements)
+        if dist < self.currDistance :
+            print("Bike inserted. d: ", dist)
+            self.currDistance = dist
+            self.mh.sendMessage(True) # Bike in
+            self.buzzer.play('inserted')
+            self.led.hasBike() # orange
+            self.mode = 2
 
-  def monitorBike(self):
-    if self.mode == 1:
-      current_bike_distance = self.collectMeasurements(5)
-      if abs(current_bike_distance - self.bike_distance) > self.ultrasound_allowance:
-        print("Bike removed! Distance: ", current_bike_distance, "cm")
-        # Bike removed
-        self.mh.sendMessage(True)
-        self.mode = 2
+    '''
+    mode 2
+    Monitor bike for removal.
+    Alarm if alarmed (mode 3), else goto mode 0
+    '''
+    def monitorBike(self):
+        current_bike_distance = self.collectMeasurements(5)
+        if abs(current_bike_distance - self.currDistance) > self.ultrasound_allowance:
+          print("Bike removed! Distance: ", current_bike_distance, "cm")
+          # Bike removed
+          self.mh.sendMessage(False) # Bike removed
+          if self.mh.getAlarmStatus():
+              # Sound alarm
+              self.mode = 3
+              self.buzzer.play('alarm')
+              self.led.startAlarm()
+          else:
+              self.mode = 0
+              self.led.turnOff()
 
-  def soundAlarm(self):
-    print("Error: sounding alarm...")
-    self.buzzer.play('alarm')
-    self.led.startAlarm()
-    sleep(5)
-    self.buzzer.stop()
-    self.mode = 0
-    self.led.noBike()
+    '''
+    mode 3
+    Sounding alarm till stopped
+    '''
+    def soundAlarm(self):
+          if not self.mh.getAlarmStatus():
+              self.buzzer.stop()
+              self.mode = 0
+              self.led.turnOff()
 
-  def readSensors(self):
-    acc = self.accel.readAccelerometer()
-    temp = self.accel.readTemperature()
-    if acc>64:
-        #print("Temp: ", temp)
-        print("Accel: ", acc)
+    def collectMeasurements(self, num_measurements):
+        measurements = []
+        for i in range(num_measurements):
+          measurements.append(self.usound.read())
+        measurements.sort()
+        acc = 0
+        for m in measurements[2:num_measurements-3]:
+            acc += m
+        return acc / (num_measurements - 4)
 
 
 
@@ -93,34 +103,17 @@ if __name__ == "__main__":
     m = monitor()
     
     while True:
-      # TODO: Check for MQTT messages
-      # bikestatus = int(input("Enter status: 0 - NULL, 1 - bikein, 2 - bikeout")) #m.mh.getBikeStatus()
-      sleep(0.1)
-      bikestatus = m.mh.getBikeStatus()
-      # m.readSensors()
+        sleep(0.1)
 
+        if m.mode == 0:
+            m.noBikeInit()
 
-      if m.mode == 0: # No bike
-        if bikestatus == 1: # bikein
-          m.newBike()
+        elif m.mode == 1:
+            m.waitForBike()
 
-      elif m.mode == 1: # Bike inside
-        if bikestatus == 2: # bikeout
-          m.releaseBike()
-        else:
-          m.monitorBike()
+        elif m.mode == 2:
+            m.monitorBike()
 
-      elif m.mode == 2: # Bike wrongly removed
-        # TODO: Extension: Get confirmation from server
-        m.mode = 3
-
-      elif m.mode == 3: # Alarm
-        m.soundAlarm()
-
-      
-
-      # If new user wants to park bike
-      
-
-      # If user wants to release bike
-      
+        elif m.mode == 3:
+            m.soundAlarm()
+        
