@@ -6,6 +6,7 @@ import paho.mqtt.client as mqtt
 import json
 import datetime
 from socket import gethostname
+import queue
 
 # @sherwin python indent is 4 pls lolol
 LOCK_POSTCODE = "SW7 2AZ"   # These parameters will be baked in at install-time
@@ -23,9 +24,10 @@ class MessageHandler:
         self.client = mqtt.Client(client_id=CLIENT_ID)              # client object
         status = self.client.connect(BROKER_IP, port=BROKER_PORT)   # connect to server
         print(mqtt.error_string(status))                            # error handling
-        self.client.subscribe(BASE_TOPIC+"/status")                 # sub to incoming messages
-        self.client.on_message = self.__checkin_callback            # bind callback to checkin
-        self.latestMsg= 0
+        self.client.subscribe(BASE_TOPIC+"/alarm")                 # sub to incoming messages
+        self.client.on_message = self.__alarm_callback            # bind callback to checkin
+        self.alarmQueue = queue.Queue(1)
+        self.alarmed = 0
 
         self.start()    # start to react to incoming messages on the defined topic
 
@@ -37,7 +39,7 @@ class MessageHandler:
         '''MQTT Client to start receieving on the channel'''
         self.client.loop_stop()
 
-    def sendMessage(self, stolen=False):
+    def sendMessage(self, bikein):
         '''Sends message to server on `BASE_TOPIC/stolen` with a timestamp
         The server assumes any message on `/stolen` indicates that the lock 
         has detected something stolen.
@@ -46,15 +48,15 @@ class MessageHandler:
         '''
         timestamp = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
         
-        if stolen:
-            msg = { "timestamp"  : timestamp }
-            msg = bytes(json.dumps(msg), 'utf-8')           # dump json object into string
-            
-            MSG_INFO = self.client.publish(BASE_TOPIC+'/stolen', msg)
+        msg = { "timestamp"  : timestamp } # dump json object into string
+        msg = bytes(json.dumps(msg), 'utf-8') 
+
+        if bikein:
+            MSG_INFO = self.client.publish(BASE_TOPIC+'/in', msg)
             print(mqtt.error_string(MSG_INFO.rc))
         else: 
-            # we actually don't need to publish for this
-            msg = { "stolen" : "no", "time"  : timestamp }
+            MSG_INFO = self.client.publish(BASE_TOPIC+'/out', msg)
+            print(mqtt.error_string(MSG_INFO.rc))
     
     def sendTelemetry(self, payload):
         '''Sends regular accelerometer data to the server for anomaly detection purposes.
@@ -70,34 +72,32 @@ class MessageHandler:
         MSG_INFO = self.client.publish(BASE_TOPIC+'/telemetry', msg)
         print(mqtt.error_string(MSG_INFO.rc))
     
-  # Returns either bikein [1], bikeout [2], or NULL (no message) [0]
-    def getBikeStatus(self):
-        status = self.latestMsg
-        self.latestMsg = 0
-        return status
+    def getAlarmStatus(self):
+        try:
+            status = self.alarmQueue.get_nowait()
+            self.alarmed = status
+        except queue.Empty:
+            pass
 
-    def __checkin_callback(self, client, userdata, message):
-        """Function to bind to checkin function
+        return self.alarmed
+
+    def __alarm_callback(self, client, userdata, message):
+        """Function to bind to function
         """
         payload = json.loads( message.payload.decode("utf-8") )
         
         timestamp = payload['timestamp']
         # todo check if timestamp is sensible (security)
 
-        inout = payload['in_out']
-        if (inout == "in"):
-            # TODO hardware things for checking in
-            print("Lock checked in!")
-            self.latestMsg = 1
-        elif (inout == "out"):
-            # TODO hardware things for checking out
-            print("Lock checked out!")
-            self.latestMsg = 2
+        alarmStatus = payload['status']
+        if alarmStatus == 0 or alarmStatus == 1:
+            self.alarmQueue.put(alarmStatus)
+            print("Alarm set to ", alarmStatus)
         else:
-            assert False, "Lock received an invalid value on /status[in_out]: {}".format(inout)
-
-        # print("message received ", payload)
-        # print("message topic=",message.topic)
+            print("message received ", payload)
+            print("message topic=",message.topic)
+        
+        
         # print("message qos=",message.qos)
         # print("message retain flag=",message.retain)
 
