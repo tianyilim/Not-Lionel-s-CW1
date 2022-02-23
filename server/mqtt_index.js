@@ -1,5 +1,12 @@
-const mqtt = require('mqtt');
+// setting up web-app
+const express = require("express");
+const react = express();
+react.use(express.json());
+react.listen(3001, () => console.log("listening at port 3000"));
+react.use(express.static("public"));
 
+// MQTT
+const mqtt = require('mqtt');
 const mqtt_options = {
     // Clean session
     clean: true,
@@ -18,6 +25,7 @@ const mqtt_address = 'mqtt://35.178.122.34:8883'    // secure
 const client  = mqtt.connect(mqtt_address, mqtt_options)
 client.on('connect', function () {
   console.log('JS Server connecting to MQTT Broker')
+  // subscribe to checkinresponse
   client.subscribe('ic_embedded_group_4/+/+/+/checkinresponse', function (err) {
     if (!err) { console.log("JS Server connected to MQTT Broker") }
   })
@@ -31,16 +39,11 @@ let db = new sqlite3.Database("../db/es_cw1.db", sqlite3.OPEN_READWRITE, (err) =
     console.log('JS Server connected to database.');
 });
 
+// hacky way to open HTTP channel while waiting for MQTT message
 var desired_msg = '';
 var resp = null;
 
 client.on('message', function (topic, message) {
-    const subtopics = topic.split('/');
-
-    // check that there are 5 subtopics:
-    // ic_embedded_group_4/lock_postcode/lock_cluster_id/lock_id/TOPIC
-    console.assert(subtopics.length==5, `Incorrect subtopic format, got ${topic}`)
-
     let payload = JSON.parse(message.toString());
 
     if (resp !== null && desired_msg === topic) {
@@ -51,15 +54,14 @@ client.on('message', function (topic, message) {
         desired_msg = '';
         resp = null;
     }
-
 })
 
 const moment = require('moment');
 
 // send check in msg via mqtt when user check in
+// prompt by app.post('/checkin')
 const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id, username, bike_sn) => {
     const topic = 'ic_embedded_group_4/' + lock_postcode + '/' + lock_cluster_id + '/' + lock_id + '/checkin';
-    console.log(topic);
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     const message = Buffer.from(JSON.stringify({
         "timestamp": timestamp,
@@ -68,10 +70,11 @@ const mqtt_checkin = (lock_postcode, lock_cluster_id, lock_id, username, bike_sn
     }));
     
     client.publish(topic, message);
-    // console.log("MQTT Check In Message sent: " + message);
+    console.log("MQTT Check In Message sent at: " + topic + "\n"+ message );
 }
 
 // send check out msg via mqtt when user check out
+// prompt by app.post('/checkout')
 const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
     const topic = 'ic_embedded_group_4/' + lock_postcode + '/' + lock_cluster_id + '/' + lock_id + '/checkout';
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
@@ -83,7 +86,6 @@ const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
     console.log("MQTT Check Out Message Send")
 }
 
-const express = require("express");
 const app = express();
 const cors = require('cors');
 app.use(express.json());
@@ -92,29 +94,18 @@ app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
 
 // listen for check in
 app.post('/checkin',(request,response) => {
-    resp = response;
     var tmp = request.body;
     mqtt_checkin(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id, tmp.user, tmp.bike_sn);
+    resp = response;
     desired_msg = "ic_embedded_group_4/" + tmp.lock_postcode + "/" + tmp.lock_cluster_id.toString() + "/" + tmp.lock_id.toString() + "/checkinresponse";
-
   
     // should there be some timeout thing?
-    // response.json({state: state});
+    // response.json({state: true});  
 })
-
-// prompt check out
-// app.post('/usrauthen',(request,response) => {
-//     var tmp = request.body;
-//     // check does the username matches
-//     response.json({
-//         state: state, // state is tmp
-//     });
-// })
 
 // listen for check out
 app.post('/checkout',(request,response) => {
     var tmp = request.body;
-    // serial key should be stored in the server
     mqtt_checkout(tmp.lock_postcode, tmp.lock_cluster_id, tmp.lock_id);
 
     response.json("Checkout Received");
@@ -150,6 +141,16 @@ app.post('/usrinfo',(request,response) => {
         }
         response.json(msg);
     })    
+
+    // for testing
+    // const msg = {
+    //     checked: true,
+    //     postcode: 'SW72AZ',
+    //     cluster: 1,
+    //     id: 1,
+    //     bike_sn: 123
+    // }
+    // response.json(msg);
 })
 
 // return user's bike name + sn
