@@ -86,10 +86,14 @@ class monitor:
               self.led.turnOff()
 
     def collectMeasurements(self, num_measurements):
-        measurement = 0
+        measurements = []
         for i in range(num_measurements):
-          measurement += self.usound.read()
-        return measurement / num_measurements
+          measurements.append(self.usound.read())
+        measurements.sort()
+        acc = 0
+        for m in measurements[2:num_measurements-3]:
+            acc += m
+        return acc / (num_measurements - 4)
 
 
 
