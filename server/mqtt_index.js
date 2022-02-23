@@ -5,6 +5,9 @@ react.use(express.json());
 react.listen(3001, () => console.log("listening at port 3000"));
 react.use(express.static("public"));
 
+// FileSync
+const fs = require ('fs');
+
 // MQTT
 const mqtt = require('mqtt');
 const mqtt_options = {
@@ -16,10 +19,13 @@ const mqtt_options = {
     username:'user',
     password:'user',
 
-    ca: '../comms/auth/ca.crt'
+    protocol: 'mqtts',
+    ca: fs.readFileSync('../comms/auth/ca.crt'),
+    rejectUnauthorized: true,
+    minVersion: 'TLSv1.2',
 }
 
-const mqtt_address = 'mqtt://35.178.122.34:8883'    // secure
+const mqtt_address = 'mqtts://35.178.122.34:8883'    // secure
 
 // On connecting to server
 const client  = mqtt.connect(mqtt_address, mqtt_options)
