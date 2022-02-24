@@ -60,7 +60,6 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
    - QR code
 3. Password encryption
 4. Profile Page
-   - user can add bike serial number
    - register
 5. Add analytics
 

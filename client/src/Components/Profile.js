@@ -20,7 +20,7 @@ function Profile({getToken, setReturn}) {
         const msg = {
             username: usrname
         };
-        fetch('http://${process.env.REACT_APP_IP}:5000/usrbike',{
+        fetch('http://'+process.env.REACT_APP_IP+':5000/usrbike',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',
@@ -39,9 +39,7 @@ function Profile({getToken, setReturn}) {
 
     return (usrname !== null) ? (
         <div>
-            {/* Basic info: */}
-
-            <BikeInfo items={bicycle} />
+            <BikeInfo items={bicycle} usrname={usrname} />
         </div>
     ) : <PromptLogin />
 }

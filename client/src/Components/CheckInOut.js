@@ -8,8 +8,8 @@ function CheckInOut({getToken, setReturn}) {
     let params = searchParams.get("serialKey") === null ? [] : searchParams.get("serialKey").split(' ');
 
     const usrname = getToken();
-    if (usrname === null) {
-        let query = params.length ? "?serialKey=" + params[0] + "+" + params[1] : '';
+    if (usrname === null) {   
+        let query = params.length ? "?serialKey=" + params[0] + "+" + params[1] + ( params.length > 2 ? "+" + params[2] : "" ) : "" ;
         setReturn('/checkin'+query)
     }
 
@@ -31,7 +31,7 @@ function CheckInOut({getToken, setReturn}) {
             bike_sn: bicycleSN,
         }
 
-        fetch('http://${process.env.REACT_APP_IP}:5000/checkin',{
+        fetch('http://'+process.env.REACT_APP_IP+':5000/checkin',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',
@@ -55,7 +55,7 @@ function CheckInOut({getToken, setReturn}) {
             user: usrname, // not needed
         }
 
-        fetch('http://${process.env.REACT_APP_IP}:5000/checkout',{
+        fetch('http://'+process.env.REACT_APP_IP+':5000/checkout',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',
@@ -105,7 +105,7 @@ function CheckInOut({getToken, setReturn}) {
     });
     const [tmpSerialKeyPostCode, setTmpSerialKeyPostCode] = useState(params.length ? params[0] : '')
     const [tmpSerialKeyCluster, setTmpSerialKeyCluster] = useState(params.length ? params[1] : '')
-    const [tmpSerialKeyID, setTmpSerialKeyID] = useState('')
+    const [tmpSerialKeyID, setTmpSerialKeyID] = useState(params.length > 2 ? params[2] : '')
 
     const InputSubmit = () => {};
     const InputOnChangePostCode = (event) => {
@@ -125,7 +125,7 @@ function CheckInOut({getToken, setReturn}) {
         const msg = {
             username: usrname
         };
-        fetch('http://${process.env.REACT_APP_IP}:5000/usrinfo',{
+        fetch('http://'+process.env.REACT_APP_IP+':5000/usrinfo',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',
@@ -144,7 +144,7 @@ function CheckInOut({getToken, setReturn}) {
             } 
         })
 
-        fetch('http://${process.env.REACT_APP_IP}:5000/usrbike',{
+        fetch('http://'+process.env.REACT_APP_IP+':5000/usrbike',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',
@@ -174,7 +174,7 @@ function CheckInOut({getToken, setReturn}) {
                             type='text' onChange={InputOnChangePostCode}
                             value={tmpSerialKeyPostCode}
                             placeholder={checked ? serialKey.PostCode : 'Postcode'}
-                            disabled={checked ? true : false }
+                            disabled={checked}
                             style={{fontSize:'20px', 
                                 textTransform: tmpSerialKeyPostCode==='' ? 'none' :  'uppercase'
                             }}
@@ -185,15 +185,16 @@ function CheckInOut({getToken, setReturn}) {
                             type='text' onChange={InputOnChangeCluster}
                             value={tmpSerialKeyCluster}
                             placeholder={checked ? serialKey.Cluster : 'Cluster ID'}
-                            disabled={checked ? true : false }
+                            disabled={checked}
                             style={{fontSize:'20px'}}
                         />
                         -
                         <input 
                             className='SerialKey'
                             type='text' onChange={InputOnChangeID}
+                            value={tmpSerialKeyID}
                             placeholder={checked ? serialKey.ID : 'ID'}
-                            disabled={checked ? true : false }
+                            disabled={checked}
                             style={{fontSize:'20px'}}
                         />
                     </div>

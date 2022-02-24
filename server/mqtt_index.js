@@ -209,9 +209,18 @@ app.post('/usrbike',(request,response) => {
 
     db.all(sql, [tmp], (err,rows) => {
         if (err) throw err; 
-        // console.log(rows);
         response.send(rows)
     })    
+})
+
+// user update bike info
+app.post('/bikeupdate', (request,response) => {
+    var tmp = request.body;
+
+    // update db
+
+    response.json("Received!");
+    console.log(tmp);
 })
 
 // check valid login
