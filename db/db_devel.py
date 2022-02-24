@@ -85,13 +85,27 @@ with con:
     )
     print("created bicycle table")
 
+    con.execute(
+        """
+        CREATE TABLE telemetry(
+            serial_num INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            timestamp TEXT NOT NULL,
+            data BLOB,
+            lock_postcode TEXT NOT NULL REFERENCES current_usage(lock_postcode),
+            lock_cluster_id INTEGER NOT NULL REFERENCES current_usage(lock_cluster_id),
+            lock_id INTEGER NOT NULL REFERENCES current_usage(lock_id)
+        );
+        """
+    )
+    print("created telemetry table")
+
 sql = """
         INSERT INTO 'cluster_coordinates' (lat, lon, lock_postcode, lock_cluster_id, num_lock) 
         VALUES (?, ?, ?, ?, ?);
 """
 cluster_coordinates_data = [
-    (51.498508, -0.176752, "SW72AZ", "1", 10),
-    (51.498500, -0.176800, "SW72AZ", "2", 7),
+    (51.498616, -0.175689, "SW72AZ", "1", 10),  # Technically this is SW72BU on Google Maps
+    (51.497893, -0.175943, "SW72AZ", "2", 7),   # 
     (51.48327, -0.21455, "W68EL", "1", 5),
 ]
 
@@ -112,9 +126,9 @@ with con:
 # For creating new users
 sql = "INSERT INTO users (username, email, password_hash) values(?, ?, ?);"
 data = [
-    ('abc', 'iamattestvalue@test.com', 123),
-    ('frank', 'iamattestvalue@test.com', 123),
-    ('smith', 'iamattestvalue@test.com', 123)
+    ('abc', 'mm.aderation@gmail.com', 123),
+    ('frank', 'iamattestvalue@frank.com', 456),
+    ('smith', 'iamattestvalue@smith.com', 789)
 ]
 
 with con:
