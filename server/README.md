@@ -6,7 +6,7 @@ Node.js is required to be installed for running the script. (https://nodejs.org/
 
 Running the script:
 ```
-node index.js
+node mqtt_index.js
 ```
 
 A TCP socket is actively listening at port 2000. It receives a string from the client and returns a "received" message. A prototype of the TCP client is set up in `TCPC.py`.

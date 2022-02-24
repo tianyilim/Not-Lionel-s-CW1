@@ -33,7 +33,10 @@ client.on('connect', function () {
   console.log('JS Server connecting to MQTT Broker')
   // subscribe to checkinresponse
   client.subscribe('ic_embedded_group_4/+/+/+/checkinresponse', function (err) {
-    if (!err) { console.log("JS Server connected to MQTT Broker") }
+    if (!err) { console.log("JS Server connected to MQTT Broker: checkinresponse") }
+  })
+  client.subscribe('ic_embedded_group_4/+/+/+/stolen', function (err) {
+    if (!err) { console.log("JS Server connected to MQTT Broker: stolen") }
   })
 })
 
@@ -44,6 +47,17 @@ let db = new sqlite3.Database("../db/es_cw1.db", sqlite3.OPEN_READWRITE, (err) =
     if (err) { console.error(err.message); }
     console.log('JS Server connected to database.');
 });
+
+// Setting up Email Account
+const nodemailer = require('nodemailer');
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'ic.embedded.group4@gmail.com',
+      pass: 'not_lionel_s'
+    }
+});
+const ip_address = 'localhost'
 
 // hacky way to open HTTP channel while waiting for MQTT message
 var desired_msg = '';
@@ -60,6 +74,34 @@ client.on('message', function (topic, message) {
         desired_msg = '';
         resp = null;
     }
+})
+
+// listen to /stolen
+client.on('message', function (topic, message) {
+    let subtopics = topic.split('/');
+    if (subtopics[4] !== 'stolen') return;
+
+    // query db to find user's email address
+    const address = 'mm.aderation@gmail.com';
+    
+    const mailOptions = {
+        from: 'ic.embedded.group4@gmail.com',
+        to: address,
+        subject: 'Critical Security Alert',
+        html: `<p>
+                We have detected unusual behaviour at your bike. 
+                If this was you, please log-in into your account to review your activity <br/> <br/>
+                <a href="http://` + ip_address + `:3000/profile">Review Activity </a>
+            </p>`
+    }
+
+    transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+          console.log(error);
+        } else {
+          console.log('Email sent: ' + info.response);
+        }
+    });
 })
 
 const moment = require('moment');
