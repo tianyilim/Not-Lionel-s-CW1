@@ -98,7 +98,8 @@ code {
 }
 
 .RegisterInput{
-  width: 80%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .PromptLogin{
@@ -178,4 +179,8 @@ code {
   background: #ffffff;
   border-radius: 18px;
   border: 1px solid #cfcece;
+}
+
+.PopupInput {
+  width: 95%
 }

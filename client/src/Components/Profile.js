@@ -3,7 +3,7 @@ import { useState, useEffect, React } from 'react'
 import PromptLogin from './PromptLogin.js';
 import BikeInfo from './BikeInfo.js';
 
-function Profile({getToken, setReturn}) {
+function Profile({getToken, setReturn, removeToken}) {
     const usrname = getToken();
     if (usrname === null) {
         setReturn('/profile');
@@ -15,6 +15,11 @@ function Profile({getToken, setReturn}) {
         email: 'email address'
     })
     const [bicycle, setBicycle] = useState([]);
+
+    const SignOut = () => {
+        removeToken();
+        window.location.reload(false);
+    }
 
     const initial_fetch = () => {
         const msg = {
@@ -40,6 +45,14 @@ function Profile({getToken, setReturn}) {
     return (usrname !== null) ? (
         <div>
             <BikeInfo items={bicycle} usrname={usrname} />
+            <button
+                onClick={SignOut}
+                style={{
+                    margin: '15px'
+                }}
+            >
+                Sign Out
+            </button>
         </div>
     ) : <PromptLogin />
 }

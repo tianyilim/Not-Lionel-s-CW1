@@ -101,7 +101,7 @@ function SingleInfo({ item, usrname}) {
                             <label>
                                 Name: <br/>
                                 <input 
-                                    className='RegisterInput'
+                                    className='PopupInput'
                                     type='text'
                                     value={data.bike_name}
                                     onChange = { (event) => setData({...data, bike_name: event.target.value})}
@@ -110,7 +110,7 @@ function SingleInfo({ item, usrname}) {
 
                                 Serial Number: <br/>
                                 <input 
-                                    className='RegisterInput'
+                                    className='PopupInput'
                                     type='text'
                                     value={data.bike_sn}
                                     onChange = { (event) => setData({...data, bike_sn: event.target.value})}

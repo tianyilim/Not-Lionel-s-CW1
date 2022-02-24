@@ -68,7 +68,7 @@ function LoginPage({setToken, getReturn}) {
                                 type='checkbox'
                                 onChange={() => {setShowPw(!showPw)}}
                             />
-                            Show Passward
+                            Show Password
                         </div>
 
                         <div className='CenterText'

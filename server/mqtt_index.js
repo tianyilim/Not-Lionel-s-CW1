@@ -25,7 +25,8 @@ const mqtt_options = {
     minVersion: 'TLSv1.2',
 }
 
-const mqtt_address = 'mqtts://35.178.122.34:8883'    // secure
+// const mqtt_address = 'mqtts://35.178.122.34:8883'    // secure
+const mqtt_address = 'mqtts://localhost:8883';
 
 // On connecting to server
 const client  = mqtt.connect(mqtt_address, mqtt_options)
@@ -76,33 +77,45 @@ client.on('message', function (topic, message) {
     }
 })
 
-// TODO: check MQTT subtopics
 // listen to /stolen
 client.on('message', function (topic, message) {
     let subtopics = topic.split('/');
     if (subtopics[4] !== 'stolen') return;
 
-    // TODO: query db to find user's email address
-    const address = 'mm.aderation@gmail.com';
-    
-    const mailOptions = {
-        from: 'ic.embedded.group4@gmail.com',
-        to: address,
-        subject: 'Critical Security Alert',
-        html: `<p>
-                We have detected unusual behaviour at your bike. 
-                If this was you, please log-in into your account to review your activity <br/> <br/>
-                <a href="http://` + ip_address + `:3000/profile">Review Activity </a>
-            </p>`
-    }
+    const sql = `SELECT users.email FROM users 
+    JOIN current_usage 
+    ON users.username=current_usage.username 
+    WHERE current_usage.lock_postcode=? 
+    AND current_usage.lock_cluster_id=? 
+    AND current_usage.lock_id=?;`
 
-    transporter.sendMail(mailOptions, function(error, info){
-        if (error) {
-          console.log(error);
-        } else {
-          console.log('Email sent: ' + info.response);
+    db.get(sql, [subtopics[1], Number(subtopics[2]), Number(subtopics[3])], (err, row) => {
+        console.log(row);
+        if (row === null) return;
+        const address = row.email;
+        if (address === null || address === '') return;
+
+        const mailOptions = {
+            from: 'ic.embedded.group4@gmail.com',
+            to: address,
+            subject: 'Critical Security Alert',
+            html: `<p>
+                    We have detected unusual behaviour at your bike. 
+                    If this was you, please log-in into your account to review your activity <br/> <br/>
+                    <a href="http://` + ip_address + `:3000/profile">Review Activity </a>
+                </p>`
         }
+    
+        transporter.sendMail(mailOptions, function(error, info){
+            if (error) {
+              console.log(error);
+            } else {
+              console.log('Email sent: ' + info.response);
+            }
+        });
+
     });
+    
 })
 
 const moment = require('moment');
@@ -137,6 +150,7 @@ const mqtt_checkout = (lock_postcode, lock_cluster_id, lock_id) => {
 
 const app = express();
 const cors = require('cors');
+const { response } = require("express");
 app.use(express.json());
 app.use(cors());
 app.listen(5000, () => console.log("[HTTP] listening at port 5000"));
@@ -218,67 +232,95 @@ app.post('/usrbike',(request,response) => {
 app.post('/bikeupdate', (request,response) => {
     var tmp = request.body;
 
-    // TODO: update db
+    // const msg = {
+    //     user: usrname,
+    //     state: 'insert' | 'update' | 'delete',
+    //     original: item, // JSON
+    //     new: item,
+    // }
 
-    response.json("Received!");
-    console.log(tmp);
+    var sql = '';
+    var params = [];
+    
+    switch(tmp.state) {
+        case 'insert':
+            sql = `INSERT INTO bicycles 
+            (bike_sn, bike_name, username)
+            VALUES (?, ?, ?);
+            `
+            params = [tmp.new.bike_sn, tmp.new.bike_name, tmp.user];
+            break;
+        case 'update':
+            sql =  `UPDATE bicycles SET
+            bike_sn=?, bike_name=?
+            WHERE username=? AND bike_sn=? AND bike_name=?;
+            `
+            params = [tmp.new.bike_sn, tmp.new.bike_name, tmp.user, tmp.original.bike_sn, tmp.original.bike_name];
+            break;
+        case 'delete':
+            sql = `DELETE FROM bicycles WHERE
+            bike_sn=? AND
+            bike_name=? AND
+            username=?;
+            `
+            params = [tmp.original.bike_sn, tmp.original.bike_name, tmp.user];
+            break;
+    }
+    
+    db.run(sql, params, function(err){
+        if (err) { response.json("Error!"); return console.error(err.message); }
+        response.json("Received");
+    });
 })
 
 // check valid login
 app.post('/login', (request,response) => {
-
-    // TODO: query SQL to check logins
     var tmp = request.body;
     let state = false;
     if (tmp.username === 'abc' && tmp.pw === '123') {
         state = true;
     }
-
-    response.json({state: state});
-})
-
-// TODO
-// return marker
-app.get('/locks',(request,response) => {
-    const sql = `SELECT * FROM cluster_coordinates;`
-
-    const try1 = `SELECT * FROM cluster_coordinates
-    WHERE lock_postcode=? 
-    AND lock_cluster_id=?;`
-    
-    // -> lat, lon, lock_postcode, lock_cluster_id, num_lock
-    /*pseudocode:
-        for postcode in lock_postcode:
-            for cluster in lock_cluster_id:
-                `SELECT COUNT(*) FROM current_usage
-                WHERE lock_postcode=?, lock_cluster_id=?, occupied=1;
-                `
-                retval = count of occupied items
-                -> get occupancy based on retval/num_lock
-                -> append to list?
-    */
-    
-    /*
-    `SELECT cluster_coordinates.lock_postcode, cluster_coordinates.lock_cluster_id, cluster_coordinates.num_lock, COUNT(*) FROM current_usage
-    JOIN cluster_coordinates 
-    ON cluster_coordinates.lock_postcode=current_usage.lock_postcode 
-    AND cluster_coordinates.lock_cluster_id=current_usage.lock_cluster_id 
-    WHERE current_usage.occupied=0
-    GROUP BY current_usage.lock_postcode, current_usage.lock_cluster_id;`
-
-    `SELECT DISTINCT COUNT(*)
-    FROM cluster_coordinates INNER JOIN current_usage 
-    ON cluster_coordinates.lock_postcode=current_usage.lock_postcode 
-    AND cluster_coordinates.lock_cluster_id=current_usage.lock_cluster_id 
-    AND current_usage.occupied=0;`
-
-    // IN: postcode, cluster_id
-    // OUT: lat, lon, number of locks(num_lock), available locks/occupied locks
-    */
-
-    db.all(sql, [], (err,rows) => {
-        if (err) throw err; 
-        response.send(rows);
+    const sql = `SELECT password_hash FROM users WHERE username=?;`
+    db.get(sql, [tmp.username], (err,row) => {
+        if (err) { return console.error(err.message); }
+        
+        if (row === null) response.json({state: false});
+        else response.json({state: row.password_hash === tmp.pw})
     })
-
 })
+
+// register new users
+app.post('/register', (request, response) => {
+    var tmp = request.body;
+    const sql = `INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?);`
+    db.run(sql, [tmp.username, tmp.email, tmp.pw], (err)=> {
+        if (err) {return console.log(err);}
+        response.json("Received");
+    })
+})
+
+app.get('/locks',(request,response) => {
+
+    const sql1 = `SELECT * FROM cluster_coordinates;`
+    db.all(sql1, [], (err, rows) => {
+        if (err) { return console.log(err); }
+        console.log(rows);
+        response.send(rows);
+    });
+    
+})
+
+app.get('/lockavail',(request,response) => {
+    // Need to make sure that we match the lock postcode, cluster id 
+    // with appropriate vals on the other side
+    const sql2 = `SELECT lock_postcode, lock_cluster_id, COUNT(*) as count
+        FROM current_usage WHERE occupied=0 
+        GROUP BY lock_postcode, lock_cluster_id;`
+    db.all(sql2, [], (err, rows) => {
+        if (err) { return console.log(err); }
+        console.log(rows);
+        response.send(rows);
+    });
+})
+
+

@@ -10,7 +10,8 @@ LOCK_CLUSTER_ID = 1
 LOCK_ID = 1
 CLIENT_NAME = "RPI_/{}/{}/{}".format(LOCK_POSTCODE, LOCK_CLUSTER_ID, LOCK_ID)
 BASE_TOPIC = "ic_embedded_group_4/{}/{}/{}".format(LOCK_POSTCODE, LOCK_CLUSTER_ID, LOCK_ID)
-BROKER_IP = "35.178.122.34"
+# BROKER_IP = "35.178.122.34"
+BROKER_IP = "localhost"
 BROKER_PORT = 8883
 
 # callbacks
@@ -51,14 +52,16 @@ client.on_connect = on_connect
 client.on_disconnect = on_disconnect
 client.on_log = on_log
 
-inout = input('>>> y for in, n for out\n')
+inout = input('>>> y for in, n for out, s for stolen\n')
 
 print("Client Publishing")
 msg = { "timestamp" :  datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 msg = bytes(json.dumps(msg), 'utf-8')
 if inout == 'y':
     client.publish(BASE_TOPIC+'/in', msg)
-else:
+elif inout == 's':
+    client.publish(BASE_TOPIC+'/stolen', msg)
+elif inout == 'n':
     client.publish(BASE_TOPIC+'/out', msg)
 
 # conn_flag = False

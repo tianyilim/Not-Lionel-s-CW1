@@ -34,8 +34,15 @@ The state of whether the user has checked into a lock is fetched on load of the 
 
 <br/>
 
+### Profile Page
+The profile page shows the bike users have declared including bike name and serial number. <br/>
+![image](img/profile.png) <br/>
+
+It allows user to edit, add and delete bike entries. <br/>
+![image](img/profile_edit.png) <br/>
+
 ### Prompt Login Page
-When user trying to access to the Check In and Profile (TBD) Page without login, they would be prompted to login. Clicking onto the "Sign In" button would direct user to the Login Page. <br/>
+When user trying to access to the Check In and Profile Page without login, they would be prompted to login. Clicking onto the "Sign In" button would direct user to the Login Page. <br/>
 ![image](img/prompt_login.PNG) <br/>
 
 ### Login Page
@@ -44,8 +51,8 @@ Allow user to login into their account. <br/>
 Upon login, credentials will be sent to the server via HTTP for check. Upon successful login, username would be stored in the session. User will then be redirected to the page before being prompted to login.
 <br/>
 
-### Register Page (TBD)
-Allow users to register into the system by filling in information such as full name, username, email address and passward. <br/>
+### Register Page
+Allow users to register into the system by filling in information such as full name, username, email address and password. <br/>
 ![image](img/register.PNG)
 <br/>
 
@@ -54,14 +61,10 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
 
 ## TODO
 1. Lock database
-   - fetch availability (bool + number of locks)
    - fetch average time per cluster
-2. Check In with auto-filled serial key
-   - QR code
-3. Password encryption
-4. Profile Page
-   - register
-5. Add analytics
+2. Password encryption
+3. Add analytics
+4. Report Stolen
 
 
 ## Change Log
@@ -71,3 +74,4 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
 17-Feb-2022 : added HTTP communication with server on check in out page. <br/>
 22-Feb-2022 : updated state machine + added login page with simple login authentication + query string in checkin page + bike serial number. <br/>
 22-Feb-2022 : added checkin comfirmation + state machine done with the server. <br/>
+24-Feb-2022 : added profile page with bike infos + fetching availability of lock clusters. <br/>

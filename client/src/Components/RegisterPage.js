@@ -1,20 +1,23 @@
 import { useState, React } from 'react'
+import { useNavigate } from 'react-router-dom';
 import sha256 from 'crypto-js/sha256';
 import hmacSHA512 from 'crypto-js/hmac-sha512';
 import Base64 from 'crypto-js/enc-base64';
 
 function RegisterPage() {
+    const navigate = useNavigate();
+
     const [data,setData] = useState({
-        "name": "",
-        "username": "",
-        "email":"",
-        "pw":""
+        name: "",
+        username: "",
+        email:"",
+        pw:""
     })
 
     const [showPw, setShowPw] = useState(false);
 
     const [correctPw, setCorrectPw] = useState(true);
-    const ConfirmPassward = (event) => {
+    const ConfirmPassword = (event) => {
         if (data.pw !== "" && event.target.value !== data.pw)
             setCorrectPw(false);
         else setCorrectPw(true);
@@ -31,6 +34,15 @@ function RegisterPage() {
             alert("WRONT PW!");
             return;
         }
+
+        const msg = data;
+        fetch('http://'+process.env.REACT_APP_IP+':5000/register',{
+            method: 'POST',
+            headers: {
+                'Content-type': 'application/json',
+            },
+            body: JSON.stringify(msg),
+        }).then(navigate('/login'))
     }
 
     // const message = sha256("123" + "Message")
@@ -47,7 +59,7 @@ function RegisterPage() {
                         Full Name: <br/>
                         <input 
                             className='RegisterInput' type='text' 
-                            onChange={ (event) => {setData({...data, "name": event.target.value})} }
+                            onChange={ (event) => {setData({...data, name: event.target.value})} }
                         />
                         <br/>
 
@@ -55,7 +67,7 @@ function RegisterPage() {
                         Username: <br/>
                         <input 
                             className='RegisterInput' type='text' 
-                            onChange={ (event) => {setData({...data, "username": event.target.value})} } 
+                            onChange={ (event) => {setData({...data, username: event.target.value})} } 
                         />
                         <br/>
 
@@ -63,7 +75,7 @@ function RegisterPage() {
                         Email Address: <br/>
                         <input 
                             className='RegisterInput' type='text' 
-                            onChange={ (event) => {setData({...data, "email": event.target.value})} } 
+                            onChange={ (event) => {setData({...data, email: event.target.value})} } 
                         />
                         <br/>
 
@@ -79,7 +91,7 @@ function RegisterPage() {
                         Confirm Password: <br/>
                         <input 
                             className='RegisterInput' type={showPw ? 'text' : 'password' } 
-                            onChange={ConfirmPassward} 
+                            onChange={ConfirmPassword} 
                         />
 
                         <div>
@@ -99,23 +111,19 @@ function RegisterPage() {
                     {correctPw ? "" : "Please confirm password!"}
                 </div>
 
-                <div style={{display:'flex'}}>
-                    <button className='CenterText'
-                        style={{marginTop: '30px'}}
-                    >
-                        <a href="/login"
-                            style={{textDecoration: 'none', color: 'black'}}
-                        >
-                            Log In
-                        </a>
-                    </button>
-                    <button className='CenterText' 
-                        onClick={Register}
-                        style={{marginTop: '30px',}}
-                    >
-                        Register
-                    </button>
-                </div>
+
+                <button className='CenterText' 
+                    onClick={Register}
+                    style={{marginTop: '30px',}}
+                >
+                    Register
+                </button>
+
+                <a href="/login"
+                    className='CenterText'
+                > 
+                    Already an user? 
+                </a>
 
                 <br/>
             </div>

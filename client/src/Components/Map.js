@@ -26,10 +26,15 @@ function Map() {
   const [currentMarker, setCurrentMarker] = useState(null)
   // lat, lon, lock_postcode, lock_cluster_id, num_lock
   const [markers, setMarkers] = useState([]);
+  const [markerAvail, setMarkerAvail] = useState([]);
 
   const onClickMarker = (item) => {
     setDetails(true); 
-    setCurrentMarker(item);
+    let avail = markerAvail.find(element => {
+      return element.lock_postcode === item.lock_postcode && 
+      element.lock_cluster_id === item.lock_cluster_id
+    })
+    setCurrentMarker({...item, count: avail ? avail.count : 0});
   }
 
   // fetch markers position + name
@@ -43,9 +48,20 @@ function Map() {
     .then(response => response.json())
     .then(response => {
       setMarkers(response);
-    })    
-  }
+    })
 
+    fetch('http://'+process.env.REACT_APP_IP+':5000/lockavail', {
+      method: 'GET',
+      headers: {
+        'Content-type': 'application/json',
+      },
+    })
+    .then(response => response.json())
+    .then(response => {
+      setMarkerAvail(response);
+    })
+  }
+  
   useEffect(() => {
     initial_fetch();
   },[])
@@ -61,9 +77,13 @@ function Map() {
           { /* Child components, such as markers, info windows, etc. */ }
           {markers.map((item,index) => {
             let location = {lat: Number(item.lat), lng: Number(item.lon)};
+            let avail = markerAvail.find(element => {
+              return element.lock_postcode === item.lock_postcode && 
+              element.lock_cluster_id === item.lock_cluster_id
+            })
             return (
               <Marker key={index} position={location} 
-                // icon={item.available ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png" : "https://maps.google.com/mapfiles/ms/icons/red-dot.png"}
+                icon={avail ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png" : "https://maps.google.com/mapfiles/ms/icons/red-dot.png"}
                 onClick={ () => onClickMarker(item) }
               />
             )
@@ -78,7 +98,7 @@ function Map() {
           <div className='Details'>
             Name: {currentMarker.lock_postcode}-{currentMarker.lock_cluster_id}<br/>
             Total locks: {currentMarker.num_lock} <br/>
-            Available locks: {currentMarker.free} <br/>
+            Available locks: {currentMarker.count} <br/>
           </div>
 
           <br/>

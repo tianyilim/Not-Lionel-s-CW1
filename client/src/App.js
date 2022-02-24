@@ -22,6 +22,9 @@ function App() {
     return token;
   }
 
+  const removeToken = () => {
+    sessionStorage.removeItem('username');
+  }
   const setReturn = (url) => {
     sessionStorage.setItem('returnURL', JSON.stringify(url));
   }
@@ -31,6 +34,7 @@ function App() {
     sessionStorage.removeItem('returnURL');
     return token;
   }
+
 
   const MenuBar = [{
     name: 'CheckInOut',
@@ -58,7 +62,7 @@ function App() {
             <Route exact path="/" element={<Map/>} />
             <Route exact path="/checkin" element={<CheckInOut getToken={getToken} setReturn={setReturn} />} />
             <Route exact path="/register" element={<RegisterPage/>} />
-            <Route exact path="/profile" element={<Profile getToken={getToken} setReturn={setReturn} />} />
+            <Route exact path="/profile" element={<Profile getToken={getToken} setReturn={setReturn} removeToken={removeToken} />} />
             <Route exact path="/login" element={<LoginPage setToken={setToken} getReturn={getReturn} />} />
           </Routes >
         </div>

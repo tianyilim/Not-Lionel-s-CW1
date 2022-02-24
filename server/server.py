@@ -15,7 +15,8 @@ from threading import Timer
 # MQTT Parameteters
 CLIENT_NAME = "server_py"
 BASE_TOPIC = "ic_embedded_group_4"
-BROKER_IP = "35.178.122.34"
+# BROKER_IP = "35.178.122.34"
+BROKER_IP = "localhost"
 BROKER_PORT = 8883
 
 # SQL parameters
@@ -292,11 +293,18 @@ def on_message(client, userdata, message):
         else:
             # Throw an error
             print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            print('Client \'Report\' response error state')
+            print('RPi \'Stolen\' response error state')
 
     elif subtopics[4] == 'telemetry':
         # RPi reports regular telemetry data
-        print(subtopics[1], subtopics[2], subtopics[3], "TODO Handle regular telemetry")
+        sql = '''
+            INSERT INTO telemetry (timestamp, data, lock_postcode, lock_cluster_id, lock_id)
+            VALUES (?, ?, ?, ?, ?);'''
+        con.execute(sql, [
+            dt_string, payload['accel_data'],   # TODO confirm this works
+            subtopics[1], subtopics[2], subtopics[3]
+        ])
+        # print(subtopics[1], subtopics[2], subtopics[3], "Handle regular telemetry")
     
     else:
         # Error handling (unexpected topic)
