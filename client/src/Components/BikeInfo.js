@@ -44,7 +44,7 @@ function SingleInfo({ item, usrname}) {
             original: item,
             new: {},
         }
-        fetch('http://'+process.env.REACT_APP_IP+':5000/bikeupdate',{
+        fetch('http://' + process.env.REACT_APP_IP + ':5000/bikeupdate',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',

@@ -87,7 +87,7 @@ function RegisterPage() {
                                 type='checkbox'
                                 onChange={() => {setShowPw(!showPw)}}
                             />
-                            Show Passward
+                            Show Password
                         </div>
 
                     </label>
@@ -96,7 +96,7 @@ function RegisterPage() {
                 <div className='CenterText'
                     style={{color:'red'}}
                 >
-                    {correctPw ? "" : "Please confirm passward!"}
+                    {correctPw ? "" : "Please confirm password!"}
                 </div>
 
                 <div style={{display:'flex'}}>

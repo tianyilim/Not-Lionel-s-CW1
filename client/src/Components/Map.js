@@ -34,7 +34,7 @@ function Map() {
 
   // fetch markers position + name
   const initial_fetch = () => {
-    fetch(`http://'+process.env.REACT_APP_IP+':5000/locks`,{
+    fetch('http://'+process.env.REACT_APP_IP+':5000/locks',{
       method: 'GET',
       headers: {
         'Content-type': 'application/json',

@@ -76,12 +76,13 @@ client.on('message', function (topic, message) {
     }
 })
 
+// TODO: check MQTT subtopics
 // listen to /stolen
 client.on('message', function (topic, message) {
     let subtopics = topic.split('/');
     if (subtopics[4] !== 'stolen') return;
 
-    // query db to find user's email address
+    // TODO: query db to find user's email address
     const address = 'mm.aderation@gmail.com';
     
     const mailOptions = {
@@ -217,7 +218,7 @@ app.post('/usrbike',(request,response) => {
 app.post('/bikeupdate', (request,response) => {
     var tmp = request.body;
 
-    // update db
+    // TODO: update db
 
     response.json("Received!");
     console.log(tmp);
@@ -236,6 +237,7 @@ app.post('/login', (request,response) => {
     response.json({state: state});
 })
 
+// TODO
 // return marker
 app.get('/locks',(request,response) => {
     const sql = `SELECT * FROM cluster_coordinates;`
