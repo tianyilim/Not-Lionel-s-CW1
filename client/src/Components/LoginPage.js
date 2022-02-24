@@ -19,7 +19,7 @@ function LoginPage({setToken, getReturn}) {
         // check password
         // TODO encrypt pw
         const msg = data;
-        fetch('http://localhost:5000/login',{
+        fetch('http://${process.env.REACT_APP_IP}:5000/login',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',

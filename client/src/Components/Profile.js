@@ -20,7 +20,7 @@ function Profile({getToken, setReturn}) {
         const msg = {
             username: usrname
         };
-        fetch('http://localhost:5000/usrbike',{
+        fetch('http://${process.env.REACT_APP_IP}:5000/usrbike',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',

@@ -31,7 +31,7 @@ function CheckInOut({getToken, setReturn}) {
             bike_sn: bicycleSN,
         }
 
-        fetch('http://localhost:5000/checkin',{
+        fetch('http://${process.env.REACT_APP_IP}:5000/checkin',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',
@@ -55,7 +55,7 @@ function CheckInOut({getToken, setReturn}) {
             user: usrname, // not needed
         }
 
-        fetch('http://localhost:5000/checkout',{
+        fetch('http://${process.env.REACT_APP_IP}:5000/checkout',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',
@@ -125,7 +125,7 @@ function CheckInOut({getToken, setReturn}) {
         const msg = {
             username: usrname
         };
-        fetch('http://localhost:5000/usrinfo',{
+        fetch('http://${process.env.REACT_APP_IP}:5000/usrinfo',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',
@@ -144,7 +144,7 @@ function CheckInOut({getToken, setReturn}) {
             } 
         })
 
-        fetch('http://localhost:5000/usrbike',{
+        fetch('http://${process.env.REACT_APP_IP}:5000/usrbike',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',
