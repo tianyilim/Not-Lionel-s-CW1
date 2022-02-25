@@ -1,3 +1,4 @@
+from urllib.parse import ParseResultBytes
 from gpiozero import TonalBuzzer
 from gpiozero.tones import Tone
 from time import sleep
@@ -8,69 +9,71 @@ class Buzzer:
     pin_num = 17 #GPIO pin at which buzzer is connected
 
     def __init__(self): #init buzzer
+
+        #Create a thread to control the buzzer
+        self.thread =  threading.Thread(target=self.__play,daemon=True)
+        self.thread.start() #Start the thread
+
         #Instantiate a TonalBuzzer element
         self.buzzer = TonalBuzzer(17, mid_tone=Tone('G6'), octaves=3)
 
-        #Set initial values of parameters
-        self.stopping = False #If this is set True, buzzer will stop playing sound
+        #Variable used to enable an alarm which is not turned off by other sounds being played
+        self.blocked = False
 
-    def stop(self): #Stops all sound being played
-        self.stopping = True
+        #Declare some variables
+        self.i = 0 # Index variable
+        self.notes = [] #Sequence of notes which will be played
+        self.repeat = False # Determines whether notes should be replayed
 
     def play(self,sound): #Plays a sound on the buzzer
 
-        if sound == 'alarm':
-            #Create a thread for the buzzer functions to execute on
-            self.thread =  threading.Thread(target=self.__alarm)
-            self.thread.start() #Start the thread
-        elif sound == 'inserted':
-            #Create a thread for the buzzer functions to execute on
-            self.thread =  threading.Thread(target=self.__inserted)
-            self.thread.start() #Start the thread
-        elif sound == 'removed': #Removed
-            #Create a thread for the buzzer functions to execute on
-            self.thread =  threading.Thread(target=self.__removed)
-            self.thread.start() #Start the thread
-        else:
-            raise ValueError("The requested sound does not exist")
+        if not self.blocked():
+            if sound == 'inserted':
+                self.i = 0
+                self.notes = ['A6','B6','D7']
+                self.repeat = False
+            elif sound == 'removed':
+                self.i = 0
+                self.notes = ['A6','F5','E5']
+                self.repeat = False
+            elif sound == 'alarm':
+                self.i = 0
+                self.notes = ['A6','A6','A6','A6','A6','C7','C7','C7','C7','C7']
+                self.repeat = True
+            elif sound == 'blocking_alarm':
+                self.i = 0
+                self.notes = ['A6','A6','A6','A6','A6','C7','C7','C7','C7','C7']
+                self.repeat = True
+                self.blocked = True
+            else:
+                raise ValueError("The requested sound does not exist")
 
-    def __inserted(self): #Plays an "inserted" sound
-        self.buzzer.play(Tone('A6'))
-        sleep(0.1)
-        self.buzzer.play(Tone('B6'))
-        sleep(0.1)
-        self.buzzer.play(Tone('D7'))
-        sleep(0.1)
-        self.buzzer.stop()
+    def stop(self):
+        if not self.blocked:
+            self.buzzer.stop()
+            self.i = 0
+            self.notes = []
+            self.repeat = False
 
-    def __removed(self):  #Plays a "removed" sound
-        self.buzzer.play(Tone('A6'))
-        sleep(0.1)
-        self.buzzer.play(Tone('F5'))
-        sleep(0.1)
-        self.buzzer.play(Tone('E5'))
-        sleep(0.1)
-        self.buzzer.stop()
+    def unblock(self): # Returns buzzer to normal function after a blocked alarm has been played 
+        self.blocked = False
 
-    def __alarm(self):
 
-        i = 0
-        notes = ['A6','A6','A6','A6','A6','C7','C7','C7','C7','C7'] #Sequence of notes which will be played
+    def __play(self):
 
         while True:
-            
-            #Check if sound should stop playing
-            if self.stopping == True:
-                self.stopping = False
-                self.buzzer.stop()
-                return
 
-            self.buzzer.play(Tone(notes[i]))
+            if len(self.notes) > 0:
 
-            if i >= len(notes) - 1: #Make sound loop
-                i = 0
-            else:
-                i += 1
+                self.buzzer.play(Tone(self.notes[self.i]))
+
+                self.i += 1
+
+                if self.i >= len(self.notes):
+                    if self.repeat:
+                        self.i = 0
+                    else:
+                        self.stop()
 
             sleep(0.1) #Each note lasts 100 ms
     

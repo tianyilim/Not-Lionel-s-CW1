@@ -13,7 +13,7 @@ class TheftDetector:
         self.queue = queue.SimpleQueue()
 
         # Start a thread on which to run theft detection
-        self.thread = threading.Thread(target=self.__detect)
+        self.thread = threading.Thread(target=self.__detect,daemon=True)
 
         # Lock to make sure I2C connection is not interupted
         self.lock = threading.Lock()

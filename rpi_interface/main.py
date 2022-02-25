@@ -3,13 +3,13 @@ from ultrasound import UltrasoundSensor
 from buzzer import Buzzer
 from mqtt_rpi import MessageHandler
 from led import LED
+from theftdetector import TheftDetector
+from statistics import median
 
 from time import sleep
 
 class monitor:
 
-    ultrasound_allowance = 3
-    num_ultrasound_measurements = 10
     nobike_threshold = 50
 
     def __init__(self):
@@ -18,85 +18,84 @@ class monitor:
         self.buzzer = Buzzer()
         self.mh = MessageHandler()
         self.led = LED()
+        self.tdetector = TheftDetector()
 
         """
         States:
-        0 - Start
-        1 - No bike inserted
-        2 - Bike inserted (monitoring)
-        3 - Alarm
+        0 - No bike inserted
+        1 - Bike inserted (monitoring)
+        2 - Alarm
         """
         self.mode = 0
-        self.currDistance = 0
+
+        # Variable used to keep track of ultrasound measurements
+        self.measurements = [200,200,200,200,200]
 
     '''
-    mode 0:
-    Take measurements to get to next state
+    mode 0
+    Check if measured distance is smaller than the threshold for a bike to be inserted
     '''
-    def noBikeInit(self):
-        dist = self.collectMeasurements(self.num_ultrasound_measurements)
-        if dist < self.nobike_threshold :
-            print("Initial d: ", dist)
-            self.currDistance = dist
-            self.led.noBike()
+    def waitForBike(self):
+        if median(self.measurements) < self.nobike_threshold:
+            print("Bike inserted. d: ", median(self.measurements))
+            self.mh.sendMessage(True) # Bike in
+            self.buzzer.play('inserted')
+            self.led.hasBike() # orange
             self.mode = 1
 
     '''
     mode 1
-    Check if distance has decreased meaning bike is inserted
-    '''
-    def waitForBike(self):
-        dist = self.collectMeasurements(self.num_ultrasound_measurements)
-        if dist < self.currDistance :
-            print("Bike inserted. d: ", dist)
-            self.currDistance = dist
-            self.mh.sendMessage(True) # Bike in
-            self.buzzer.play('inserted')
-            self.led.hasBike() # orange
-            self.mode = 2
-
-    '''
-    mode 2
-    Monitor bike for removal.
-    Alarm if alarmed (mode 3), else goto mode 0
+    Monitor bike, if bike removed without permission go to alarm (mode 2), if removed with permission go to (mode 0)
     '''
     def monitorBike(self):
-        current_bike_distance = self.collectMeasurements(5)
-        if abs(current_bike_distance - self.currDistance) > self.ultrasound_allowance:
-          print("Bike removed! Distance: ", current_bike_distance, "cm")
+        if median(self.measurements) > self.nobike_threshold:
+          print("Bike removed! Distance: ", median(self.measurements), "cm")
           # Bike removed
           self.mh.sendMessage(False) # Bike removed
           if self.mh.getAlarmStatus():
               # Sound alarm
-              self.mode = 3
+              self.mode = 2
               self.buzzer.play('alarm')
               self.led.startAlarm()
           else:
               self.mode = 0
-              self.led.turnOff()
+              self.led.noBike()
 
     '''
-    mode 3
+    mode 2
     Sounding alarm till stopped
     '''
     def soundAlarm(self):
           if not self.mh.getAlarmStatus():
               self.buzzer.stop()
               self.mode = 0
-              self.led.turnOff()
-
-    def collectMeasurements(self, num_measurements):
-        measurements = []
-        for i in range(num_measurements):
-          measurements.append(self.usound.read())
-        measurements.sort()
-        acc = 0
-        for m in measurements[2:num_measurements-3]:
-            acc += m
-        return acc / (num_measurements - 4)
+              self.led.noBike()
 
 
+    def collectMeasurement(self):
+        self.measurements.pop()
+        measured_distance = self.usound.read()
+        self.measurements.insert(measured_distance)
+        return measured_distance
 
+
+    def checkIfStolen(self):
+        if not m.tdetector.queue.empty():
+            stolen = False
+
+            while not m.tdetector.queue.empty():
+                try:
+                    stolen = stolen or self.tdetector.queue.get_nowait()
+                except:
+                    pass
+
+            if stolen:
+                self.led.blockedAlarm()
+                self.buzzer.play('blocking_alarm')
+            else:
+                self.led.unblock()
+                self.buzzer.unblock()
+                self.buzzer.stop()
 
 
 if __name__ == "__main__":
@@ -105,15 +104,19 @@ if __name__ == "__main__":
     while True:
         sleep(0.1)
 
-        if m.mode == 0:
-            m.noBikeInit()
+        # Measure the distance using the ultrasound sensor
+        m.collectMeasurement()
 
-        elif m.mode == 1:
+        # Check if the lock itself is being stolen
+        m.checkIfStolen()
+
+
+        if m.mode == 0:
             m.waitForBike()
 
-        elif m.mode == 2:
+        elif m.mode == 1:
             m.monitorBike()
 
-        elif m.mode == 3:
+        elif m.mode == 2:
             m.soundAlarm()
         
