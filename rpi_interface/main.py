@@ -75,7 +75,7 @@ class monitor:
     def collectMeasurement(self):
         self.measurements.pop()
         measured_distance = self.usound.read()
-        self.measurements.insert(measured_distance)
+        self.measurements.insert(0,measured_distance)
         return measured_distance
 
 
@@ -93,7 +93,18 @@ class monitor:
                 self.led.blockedAlarm()
                 self.buzzer.play('blocking_alarm')
             else:
+                # Turn of LED
                 self.led.unblock()
+                if self.mode == 0:
+                    self.led.noBike()
+                elif self.mode == 1:
+                    self.led.hasBike()
+                elif self.mode == 2:
+                    self.led.startAlarm()
+                else:
+                    self.led.turnOff()
+
+                # Turn of buzzer
                 self.buzzer.unblock()
                 self.buzzer.stop()
 
