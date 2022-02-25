@@ -37,7 +37,6 @@ class TheftDetector:
             try:
                 with self.lock:
                     new_reading = self.accelerometer.readAccelerometer()
-                    print("New reading: ",new_reading)
                     self.accel_history[index] = sqrt(sum([i**2 for i in new_reading]))
 
             except:

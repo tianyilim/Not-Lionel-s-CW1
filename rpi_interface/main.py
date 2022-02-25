@@ -98,7 +98,7 @@ class monitor:
             if (not self.led.blocked) and stolen:
                 self.led.blockedAlarm()
                 self.buzzer.play('blocking_alarm')
-            elif self.led.blocked:
+            elif self.led.blocked and not stolen:
                 # Turn of LED
                 self.led.unblock()
                 if self.mode == 0:

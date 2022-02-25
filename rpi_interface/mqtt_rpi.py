@@ -92,7 +92,7 @@ class MessageHandler:
         """
         payload = json.loads( message.payload.decode("utf-8") )
         
-        timestamp = payload['timestamp']
+        # timestamp = payload['timestamp']
         # todo check if timestamp is sensible (security)
 
         alarmStatus = payload['status']
