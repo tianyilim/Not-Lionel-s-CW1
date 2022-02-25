@@ -11,7 +11,7 @@ Our {{ site.lockBrand }} comes in a striking enclosure that makes it easy for us
 
 # Secure
 
-Tough on the inside, the {{ site.lockBrand }} can handle more than a few knocks and bumps. If someone does maange to remove it the alarm would be triggered as well.
+Tough on the inside, the {{ site.lockBrand }} can handle more than a few knocks and bumps. If someone does manage to remove it the alarm would be triggered as well.
 
 # Scalable
 
