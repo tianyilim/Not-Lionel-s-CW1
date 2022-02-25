@@ -15,5 +15,9 @@ Tough on the inside, the {{ site.lockBrand }} can handle more than a few knocks 
 
 # Scalable
 
-With many of our {{ site.lockBrand }} installed on your premises you would have access to advanced analytics showing how bike usage changes throughout the day. This can help you plan for installing more bike or staggering your employees working hours.
+With many of our {{ site.lockBrand }}s installed on your premises you would have access to advanced analytics showing how bike usage changes throughout the day. This can help you plan for installing more bike or staggering your employees working hours.
+
+![Graph of bicycle usage per week day](/assets/img/analytics1.png)
+
+![Graph of bicycle usage per hour](/assets/img/analytics2.png)
 

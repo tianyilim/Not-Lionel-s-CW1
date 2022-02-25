@@ -12,7 +12,7 @@ $spacing-unit:     30px !default;
 
 $text-color:       #111 !default;
 $background-color: #fdfdfd !default;
-$brand-color:      #dda121 !default;
+$brand-color:      #e97020 !default;
 
 $grey-color:       #828282 !default;
 $grey-color-light: lighten($grey-color, 40%) !default;
@@ -64,4 +64,8 @@ brand, .site-title, .footer-heading {
 
 .site-header {
   background-color: $brand-color;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: $brand-color !important;
 }

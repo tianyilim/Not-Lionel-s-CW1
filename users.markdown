@@ -13,7 +13,7 @@ Secure your bike in seconds using our {{ site.lockBrand }}. Simply log in, tell 
 
 If someone tries to steal your bike, we'll sound an alarm and alert you immediately. Oh, was it just you forgetting to Check-out your bike? No problem, just cancel the alarm in the app.
 
-<i> Video of alarm flashing </i>
+![Bike lock with flashing alarm light](/assets/videos/alarm-light.gif)
 
 # Map Finder
 
