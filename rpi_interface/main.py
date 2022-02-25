@@ -31,6 +31,9 @@ class monitor:
         # Variable used to keep track of ultrasound measurements
         self.measurements = [200,200,200,200,200]
 
+        # Turn on the LED
+        self.led.noBike()
+
     '''
     mode 0
     Check if measured distance is smaller than the threshold for a bike to be inserted
@@ -59,6 +62,7 @@ class monitor:
               self.led.startAlarm()
           else:
               self.mode = 0
+              self.buzzer.play('removed')
               self.led.noBike()
 
     '''
@@ -73,26 +77,28 @@ class monitor:
 
 
     def collectMeasurement(self):
-        self.measurements.pop()
-        measured_distance = self.usound.read()
-        self.measurements.insert(0,measured_distance)
-        return measured_distance
+        try:
+            self.measurements.insert(0,self.usound.read())
+            self.measurements.pop()
+        except:
+            pass
+        return
 
 
     def checkIfStolen(self):
-        if not m.tdetector.queue.empty():
+        if not self.tdetector.queue.empty():
             stolen = False
 
-            while not m.tdetector.queue.empty():
+            while not self.tdetector.queue.empty():
                 try:
                     stolen = stolen or self.tdetector.queue.get_nowait()
                 except:
                     pass
-
-            if stolen:
+                
+            if (not self.led.blocked) and stolen:
                 self.led.blockedAlarm()
                 self.buzzer.play('blocking_alarm')
-            else:
+            elif self.led.blocked:
                 # Turn of LED
                 self.led.unblock()
                 if self.mode == 0:
