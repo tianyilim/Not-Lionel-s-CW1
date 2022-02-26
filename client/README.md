@@ -17,7 +17,9 @@ The webpage would show a map of the surrounding of the user's location with mark
 ![image](img/map_markers.PNG)
 <br/>
 Upon clicking onto the pin, details about the lock would be shown, including name, total locks and available locks. Positions of the locks/pins are fetched upon loading the webpage.  <br/>
-![image](img/map_w_details.PNG)
+![image](img/map_w_details.PNG) <br/>
+User statistics such as the availability of the locks in different time period are also available.
+![image](img/lock_stat.PNG) <br/>
 <br/>
 Clicking on the "Check In" button would direct user to the Check In page with pre-filled Postcode and CLuster ID. <br/>
 ![image](img/check_in_prefilled.PNG)
@@ -31,8 +33,15 @@ User have to check out the bicycle on the webpage before removing the bike, by t
 ![image](img/check_out.PNG) <br/>
 
 The state of whether the user has checked into a lock is fetched on load of the page.
-
 <br/>
+
+### Report Stolen
+An email will be sent to user if there is abnormal behaviour detected at the lock. <br/>
+![image](img/email.PNG) <br/>
+The link would direct user to the page: <br/>
+![image](img/*) <br/>
+If no abnormalty is detected, user can still report a stolen bicycle at his or other locks, by clicking on the "Report Stolen" link in Check In page. This would allow user to fill in the serial key of the lock that looks suspicious. <br/>
+![image](img/report_anonymous.PNG) <br/>
 
 ### Profile Page
 The profile page shows the bike users have declared including bike name and serial number. <br/>
@@ -74,4 +83,4 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
 22-Feb-2022 : updated state machine + added login page with simple login authentication + query string in checkin page + bike serial number. <br/>
 22-Feb-2022 : added checkin comfirmation + state machine done with the server. <br/>
 24-Feb-2022 : added profile page with bike infos + fetching availability of lock clusters. <br/>
-26-Feb-2022 : added report stolen page for email alert and anonymous locks. <br/>
+26-Feb-2022 : added report stolen page for email alert and anonymous locks + added user stat histogram. <br/>

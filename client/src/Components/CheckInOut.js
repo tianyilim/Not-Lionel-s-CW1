@@ -209,7 +209,6 @@ function CheckInOut({getToken, setReturn}) {
                         paddingLeft: '5px',
                         color: '#707070'
                     }}
-                    // defaultValue={bicycleSN}
                     value={bicycleSN}
                     onChange={ (event) => setBicycleSN(event.target.value) }
                     disabled={checked}

@@ -323,16 +323,6 @@ app.post('/stolenstate', (request, response) => {
     // 2: true alarm
     // 3: 
 
-    // const msg = {
-    //      user: // '' if email flag is false
-    //     state: false,
-    //        State: Whether user says it's a true or false alarm
-    //     postcode: data.PostCode,
-    //     cluster: data.Cluster,
-    //     id: data.ID
-    // }
-
-    // TODO: send MQTT
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     const message = Buffer.from(JSON.stringify({
       "timestamp": timestamp, state: tmp.state
@@ -341,7 +331,6 @@ app.post('/stolenstate', (request, response) => {
     // report -> true alarm. checkout -> false alarm.
     let base_topic = 'ic_embedded_group_4/' + tmp.postcode + '/' + tmp.cluster + '/' + tmp.id;
     
-    console.log("state of stolenstate", tmp.state)
     if (tmp.state !== 0) {
       base_topic+='/report';
       client.publish(base_topic, message);
@@ -383,4 +372,17 @@ app.get('/lockavail',(request,response) => {
     });
 })
 
+app.get('/lockstat',(request,response) => {
+    // hardcoded stat, in percentage
+    const data = [
+        [10,40,50,60,70,50,20,40],
+        [10,40,50,60,70,50,20,40],
+        [10,40,50,60,70,50,20,40],
+        [10,40,50,60,70,50,20,40],
+        [0,0,0,0,0,100,0,0],
+        [0,0,0,0,0,100,0,0],
+        [0,0,0,0,0,100,0,0]
+    ]
 
+    response.json({data:data})
+})

@@ -32,10 +32,20 @@ code {
   margin-bottom: auto;
 }
 
+.DetailsBox {
+  overflow: auto;
+  height: 100%;
+  padding: 5px;
+}
+
 .Details {
   display: flex;
-  /* margin-top: 5px; */
   margin-left: 25px;
+}
+
+.DetailsGraph {
+  margin: 10px;
+  width: 50vh;
 }
 
 .CheckInOut {
