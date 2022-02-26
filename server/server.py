@@ -11,6 +11,7 @@ import json
 import sqlite3 as sl
 import os
 from threading import Timer
+import logging
 
 # MQTT Parameteters
 CLIENT_NAME = "server_py"
@@ -18,6 +19,7 @@ BASE_TOPIC = "ic_embedded_group_4"
 # BROKER_IP = "35.178.122.34"
 BROKER_IP = "localhost"
 BROKER_PORT = 8883
+SUBSCRIBED_TOPICS = ['in', 'out', 'checkin', 'checkout', 'stolen', 'report', 'telemetry']
 
 # SQL parameters
 DB_PATH = "../db/es_cw1.db"
@@ -31,14 +33,21 @@ LOCK_MUTEX = {}
 def on_connect(client, userdata, flags, rc):
     global conn_flag
     conn_flag = True
-    print("Client Connected with flag", mqtt.connack_string(rc))
+    logging.info(f"Client Connected with flag {mqtt.connack_string(rc)}")
+    
+    for topic in SUBSCRIBED_TOPICS:
+        sub_topic = BASE_TOPIC+'/+/+/+/'+topic
+        logging.info(f"Client suscribing to {sub_topic}")
+        client.subscribe(sub_topic)
+    
     conn_flag = True
 
 def on_disconnect(client, userdata, rc):
-    print("Client Disconnected with flag", rc)
+    logging.info(f"Client Disconnected with flag {mqtt.error_string(rc)}")
 
 def on_log(client, userdata, level, buf):
-    print("["+level+"]", buf)
+    pass    # we don't need to print this out for now
+    # logging.debug(f"MQTT client log: [{level}]: {buf}")
 
 def on_message(client, userdata, message):
     # handle incoming message
@@ -50,8 +59,8 @@ def on_message(client, userdata, message):
     lock_name = '/'.join(subtopics[1:4])
 
     # decode message string from JSON
-    print("Message received", payload)
-    print("Message topics", subtopics)
+    logging.info(f"Message topic: '{message.topic}'")
+    logging.debug(f"Message content: {payload}")
 
     # connect to db
     con = sl.connect(DB_PATH)
@@ -63,7 +72,10 @@ def on_message(client, userdata, message):
 
     # we first query the current usage database to find out what state we are in
     state = check_curr_usage(con, subtopics[1], subtopics[2], subtopics[3])
-    print("Fetched", state, "from DB")
+    if not state:
+        logging.warn("Got invalid values on subtopics, not responding to message")
+        return
+    logging.debug(f"Fetched {state} from DB")
 
     # current time is a useful thing
     dt_string = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -94,7 +106,7 @@ def on_message(client, userdata, message):
 
         if not state['username'] and not state['lock_time'] and not state['occupied']:
             # State A, the start state
-            print(subtopics[1], subtopics[2], subtopics[3], "State A->C at time", payload['timestamp'])
+            logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State A->C at time {payload['timestamp']}")
             # Insert lock_time in OU
             to_insert_overall_usage = True
 
@@ -104,9 +116,8 @@ def on_message(client, userdata, message):
         elif not state['username']and state['lock_time'] and state['occupied']:
             # State C, something enters the lock even after the lock is already occupied
             # update the current usage table with the most recent time
-            print(subtopics[1], subtopics[2], subtopics[3], "State C->C at time", payload['timestamp'])
-            print(subtopics[1], subtopics[2], subtopics[3], 
-                "In message received while lock still occupied. Updated lock_time.")
+            logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State C->C at time {payload['timestamp']}")
+            logging.info( f"{subtopics[1]} {subtopics[2]} {subtopics[3]} In message received while lock still occupied. Updated lock_time.")
             
             # Update lock_time in OU
             # to_update_overall_usage = True
@@ -114,18 +125,16 @@ def on_message(client, userdata, message):
                 UPDATE overall_usage SET in_time = ?
                 WHERE transaction_sn=?;
                 '''
-                # '''.format( dt_string, state['ouid'] )
-            # print("Updating overall_usage table with query:\n", sql)
             with con:
                 con.execute(sql, [dt_string, state['ouid']])
-            print("Updated overall_usage table with new lock_time.")
+            logging.info("Updated overall_usage table with new lock_time.")
 
             # Update lock_time in CU
             sql_update_usage_param['lock_time'] = dt_string
         
         elif state['username'] and state['lock_time'] and not state['occupied']:
             # State B, after user has manually checked in
-            print(subtopics[1], subtopics[2], subtopics[3], "State B->D at time", payload['timestamp'])
+            logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State B->D at time {payload['timestamp']}")
             # ! This assumes that we are currently in state B. There is a mutex that lets it take priority over an expiring timer.
             LOCK_MUTEX[lock_name] = True
 
@@ -141,8 +150,8 @@ def on_message(client, userdata, message):
         
         else:
             # Throw an error
-            print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            print('RPi \'In\' response error state')
+            logging.warning(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} Unexpected state detected {payload['timestamp']}")
+            logging.warning('RPi \'In\' response error state')
         
     elif subtopics[4] == 'out':
         # Event 3 - RPi reports that something has left lock
@@ -150,7 +159,7 @@ def on_message(client, userdata, message):
         # Check the state
         if not state['username'] and state['lock_time'] and state['occupied']:
             # State C, anonymous user has inserted a bike
-            print(subtopics[1], subtopics[2], subtopics[3], "State C->A at time", payload['timestamp'])
+            logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State C->A at time {payload['timestamp']}")
             # Update stay_duration, remark=0 in OU
             sql_update_usage_param['remark'] = 0
             to_update_overall_usage = True
@@ -163,14 +172,14 @@ def on_message(client, userdata, message):
 
         else:
             # Throw an error
-            print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            print('RPi \'Out\' response error state')
+            logging.warning(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} Unexpected state detected {payload['timestamp']}")
+            logging.warning('RPi \'Out\' response error state')
 
     elif subtopics[4] == 'checkin':
         # Event 2 - User checks in from JS
         if not state['username'] and not state['lock_time'] and not state['occupied']:
             # State A, the start state
-            print(subtopics[1], subtopics[2], subtopics[3], "State A->B at time", payload['timestamp'])
+            logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State A->B at time {payload['timestamp']}")
             # ! Starts a timer to reset back to State A after a while.
             Timer(USER_CHECKIN_GRACE*60, checkin_timeout_fn, args=(subtopics[1], subtopics[2], subtopics[3])).start()
             
@@ -198,7 +207,7 @@ def on_message(client, userdata, message):
 
             if timestamp_match or ouid_match:
                 # Timestamps match, further update the usage table
-                print(subtopics[1], subtopics[2], subtopics[3], "State C->D at time", payload['timestamp'])
+                logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State C->D at time {payload['timestamp']}")
                 send_checkin_response(subtopics, True, 'C->D')
                 
                 # Arm RPi alarm
@@ -224,23 +233,23 @@ def on_message(client, userdata, message):
                         sql_update_usage_param['bike_sn'],
                         state['ouid']
                     ])
-                print("Updated overall_usage table with username, bike_sn.")
+                logging.info("Updated overall_usage table with username, bike_sn.")
 
             else:
                 # Timestamps don't match, user association fails, db not updated.
-                print(subtopics[1], subtopics[2], subtopics[3], "State C->C at time", payload['timestamp'], "Timestamp_match", timestamp_match, "OUID_Match", ouid_match)
+                logging.info(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State C->C at time {payload['timestamp']}. Timestamp_match: {timestamp_match}, OUID_Match: {ouid_match}")
                 send_checkin_response(subtopics, False, 'Unable to find lock entry to associate with check-in')
                 
         else:
             # Throw an error
-            print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            print('Client \'Checkin\' response error state')
+            logging.warning(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} Unexpected state detected {payload['timestamp']}")
+            logging.warning('Client \'Checkin\' response error state')
 
     elif subtopics[4] == 'checkout':
         # Event 4 - User checks out from JS
         if state['username'] and state['lock_time'] and state['occupied']:
             # State E, the checkout state
-            print(subtopics[1], subtopics[2], subtopics[3], "State D->C at time", payload['timestamp'])
+            logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State D->C at time {payload['timestamp']}")
             # update (remove) username, bike_sn from CU
             sql_update_usage_param['username'] = None
             sql_update_usage_param['bike_sn'] = None
@@ -251,35 +260,60 @@ def on_message(client, userdata, message):
             
         else:
             # Throw an error
-            print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            print('Client \'Checkout\' response error state')
+            logging.warning(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} Unexpected state detected {payload['timestamp']}")
+            logging.warning('Client \'Checkout\' response error state')
 
     elif subtopics[4] == 'report':
         # Event 5 - User confirms that their bike has been stolen.
+        if payload['state'] == 1:
+            alarm_state = 0     # checkout, no irregularity
+        elif payload['state'] == 2:
+            alarm_state = 1
+        else:
+            logging.warning(f"Got unexpected value in state payload when processing report message: {payload['state']}")
+            return
+
         if state['username'] and state['lock_time'] and state['occupied']:
-            # State E, the checkout state
-            print(subtopics[1], subtopics[2], subtopics[3], "State D->A at time", payload['timestamp'])
+            # State D, the signed-in-user state
+            logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State D->A at time {payload['timestamp']}")
             # update stay_duration, remark=1 in OU
             to_update_overall_usage = True
-            sql_update_usage_param['remark'] = 1
+            sql_update_usage_param['remark'] = alarm_state
 
-            # update (remove) username, lock_time, occupied, ouid in CU
+            # update (remove) username, bike_sn, lock_time, occupied, ouid in CU
             sql_update_usage_param['username'] = None
+            sql_update_usage_param['bike_sn'] = None
             sql_update_usage_param['occupied'] = False
             sql_update_usage_param['lock_time'] = None
             sql_update_usage_param['ouid'] = None
             to_update_curr_usage = True
+
+            # disable RPi alarm
+            send_alarm_msg(subtopics, False)
             
+        elif not state['username'] and state['lock_time'] and state['occupied']:
+            # State C, the anonymous user state
+            logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State C->A at time {payload['timestamp']}")
+            # update stay_duration, remark=1 in OU
+            to_update_overall_usage = True
+            sql_update_usage_param['remark'] = alarm_state
+            
+            # update (remove) lock_time, occupied, ouid in CU
+            sql_update_usage_param['occupied'] = False
+            sql_update_usage_param['lock_time'] = None
+            sql_update_usage_param['ouid'] = None
+            to_update_curr_usage = True
+
         else:
             # Throw an error
-            print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            print('Client \'Report\' response error state')
+            logging.warning(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} Unexpected state detected {payload['timestamp']}")
+            logging.warning('Client \'Report\' response error state')
     
     elif subtopics[4] == 'stolen':
         # Event 6 - RPi reports bike is stolen
         if not state['username'] and state['lock_time'] and state['occupied']:
-            # State E, the checkout state
-            print(subtopics[1], subtopics[2], subtopics[3], "State C->A at time", payload['timestamp'])
+            # State C, the anonymous user state
+            logging.debug(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} State C->A at time {payload['timestamp']}")
             # update stay_duration, remark=1 in OU
             to_update_overall_usage = True
             sql_update_usage_param['remark'] = 1
@@ -292,8 +326,8 @@ def on_message(client, userdata, message):
             
         else:
             # Throw an error
-            print(subtopics[1], subtopics[2], subtopics[3], "Unexpected state detected", payload['timestamp'])
-            print('RPi \'Stolen\' response error state')
+            logging.warning(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} Unexpected state detected {payload['timestamp']}")
+            logging.warning('RPi \'Stolen\' response error state')
 
     elif subtopics[4] == 'telemetry':
         # RPi reports regular telemetry data
@@ -304,11 +338,11 @@ def on_message(client, userdata, message):
             dt_string, payload['accel_data'],   # TODO confirm this works
             subtopics[1], subtopics[2], subtopics[3]
         ])
-        # print(subtopics[1], subtopics[2], subtopics[3], "Handle regular telemetry")
+        # logging.info(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} Handle regular telemetry")
     
     else:
         # Error handling (unexpected topic)
-        print(subtopics[1], subtopics[2], subtopics[3], "Got unexpected topic", message.topics)
+        logging.warning(f"{subtopics[1]} {subtopics[2]} {subtopics[3]} Got unexpected topic", message.topics)
         
     assert not (to_insert_overall_usage and to_update_overall_usage), "Should not update and insert overall usage simultaneously"
     
@@ -326,14 +360,14 @@ def on_message(client, userdata, message):
                 sql_update_usage_param['bike_sn'],
                 sql_update_usage_param['lock_time']
                 ])
-        print("Inserted into overall_usage table username, bike_sn and lock_time.")
+        logging.debug("Inserted into overall_usage table username, bike_sn and lock_time.")
     
         # get OUID
         sql = "SELECT last_insert_rowid();"
         cursor = con.cursor()
         cursor.execute(sql)
         records = cursor.fetchall()[0]
-        print("Fetched last-inserted OUID as", records)
+        logging.debug(f"Fetched last-inserted OUID as {records}")
         sql_update_usage_param['ouid'] = records[0]     # it should only return one thing
 
     elif to_update_overall_usage:
@@ -348,7 +382,7 @@ def on_message(client, userdata, message):
                 sql_update_usage_param['remark'],
                 state['ouid']
             ])
-        print("Updated overall_usage table with stay_duration and remark.")
+        logging.debug("Updated overall_usage table with stay_duration and remark.")
 
     if to_update_curr_usage:
         sql = '''
@@ -376,15 +410,20 @@ def on_message(client, userdata, message):
                 subtopics[3]
             ])
         
-        print("Updated current_usage table.")
+        logging.debug("Updated current_usage table.")
 
     # release lock mutex
     LOCK_MUTEX[lock_name] = False
-
-    print()
-    print() # newlines for clearer status
+    logging.debug('\n') # newlines for clearer status
+    
+    ###########################################
+    ###      END on_message callback        ###
+    ###########################################
 
 def check_curr_usage(con, lock_postcode, lock_cluster_id, lock_id):
+    if (not lock_postcode) or (not lock_cluster_id) or (not lock_id):
+        return None
+
     query = '''
         SELECT occupied, username, bike_sn, lock_time, ouid FROM current_usage
         WHERE lock_postcode=?
@@ -409,7 +448,7 @@ def check_ouid(con, ouid, username):
     with con:
         data = con.execute(q, [ouid])
         data = data.fetchall()[0][0]
-        print("Fetched", data, "from overall_usage while checking for ouid", ouid, "username", username)
+        logging.debug(f"Fetched {data} from overall_usage while checking for ouid {ouid} and username {username}")
 
     return data == username     # only pass if username in the ouid is same as provided
 
@@ -434,38 +473,47 @@ def checkin_timeout_fn(lock_postcode, lock_cluster_id, lock_id):
                     '''
             with con:
                 con.execute(query, [lock_postcode, lock_cluster_id, lock_id])
-            print(lock_postcode, lock_cluster_id, lock_id, "State B->A")
+            logging.debug(f"{lock_postcode} {lock_cluster_id} {lock_id} State B->A")
             
             send_checkin_response(
                 [BASE_TOPIC, lock_postcode, lock_cluster_id, lock_id, ' '],
                 False, 'Check-in timed out. Check-in again and re-insert bike')
         else:
-            print(lock_postcode, lock_cluster_id, lock_id, "is locked. Not modifying its state.")
+            logging.debug(f"{lock_postcode} {lock_cluster_id} {lock_id} is locked. Not modifying its state.")
     else:
-        print(lock_postcode, lock_cluster_id, lock_id, "no longer in state B. Not modifying its state.")
+        logging.debug(f"{lock_postcode} {lock_cluster_id} {lock_id} no longer in state B. Not modifying its state.")
 
 
 def send_alarm_msg(subtopics, onoff):
     alarm_topic = ('/'.join( subtopics[:-1]+['alarm'] ))
     msg = {'status' : onoff}
-    print("Publishing", msg, "on", alarm_topic)
+    logging.debug(f"Publishing {msg} on {alarm_topic}")
 
     msg = bytes(json.dumps(msg), 'utf-8')
     client.publish(alarm_topic, msg)
 
 def send_checkin_response(subtopics, status, message: str=''):
-    topic = ('/'.join( subtopics[:-1]+['checkinresponse'] ))
+    response_topic = ('/'.join( subtopics[:-1]+['checkinresponse'] ))
     msg = {'status': status, 'message': message}
-    print("Publishing", msg, "on", topic)
+    logging.debug(f"Publishing {msg} on {response_topic}")
 
     msg = bytes(json.dumps(msg), 'utf-8')
-    client.publish(topic, msg)
+    client.publish(response_topic, msg)
 
 # Main code
 if __name__ == "__main__":
+    # Start logger
+    logging.basicConfig(level=logging.DEBUG, 
+        # format="%(asctime)s %(process)d [%(levelname)s]: %(message)s",
+        format="[%(levelname)s]: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        # filename='python_server.log', 
+        # filemode='a'
+        )   # uncomment above to just write to file
+
     # Connect to database
     if not os.path.exists(DB_PATH):
-        print("Database not found. Has it been created?")
+        logging.info("Database not found. Has it been created?")
         exit(1)
         
     client = mqtt.Client(CLIENT_NAME)                           # Create client object
@@ -476,15 +524,7 @@ if __name__ == "__main__":
         BROKER_IP = "localhost"
         BROKER_PORT = 1883
     status = client.connect(BROKER_IP, port=BROKER_PORT)        # Connect to MQTT broker
-    print(CLIENT_NAME, "connect", mqtt.error_string(status))    # Error handling
-
-    client.subscribe(BASE_TOPIC+"/+/+/+/in")
-    client.subscribe(BASE_TOPIC+"/+/+/+/out")
-    client.subscribe(BASE_TOPIC+"/+/+/+/checkin")
-    client.subscribe(BASE_TOPIC+"/+/+/+/checkout")
-    client.subscribe(BASE_TOPIC+"/+/+/+/stolen")
-    client.subscribe(BASE_TOPIC+"/+/+/+/report")
-    client.subscribe(BASE_TOPIC+"/+/+/+/telemetry")
+    logging.info(f"{CLIENT_NAME} connect {mqtt.error_string(status)}")    # Error handling
 
     # add client callbacks
     client.on_message = on_message
@@ -495,7 +535,7 @@ if __name__ == "__main__":
     conn_flag = False
     while not conn_flag:
         client.loop_start()
-        print("Waiting for connection to broker...")
+        logging.info("Waiting for connection to broker...")
         sleep(2)
 
     while conn_flag:
@@ -504,3 +544,8 @@ if __name__ == "__main__":
     # ! Insert conditions to disconnect / stop looping here.
     # client.loop_stop()
     # client.disconnect()
+
+
+'''
+
+'''

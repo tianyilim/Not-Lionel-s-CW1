@@ -10,6 +10,7 @@ import CheckInOut from './Components/CheckInOut.js';
 import RegisterPage from './Components/RegisterPage.js';
 import LoginPage from './Components/LoginPage.js';
 import Profile from './Components/Profile.js';
+import ReportStolen from './Components/ReportStolen.js';
 
 function App() {
   const setToken = (username) => {
@@ -64,6 +65,7 @@ function App() {
             <Route exact path="/register" element={<RegisterPage/>} />
             <Route exact path="/profile" element={<Profile getToken={getToken} setReturn={setReturn} removeToken={removeToken} />} />
             <Route exact path="/login" element={<LoginPage setToken={setToken} getReturn={getReturn} />} />
+            <Route exact path="/reportstolen" element={<ReportStolen getToken={getToken} setReturn={setReturn} />} />
           </Routes >
         </div>
         

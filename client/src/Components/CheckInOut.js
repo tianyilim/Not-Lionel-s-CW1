@@ -233,11 +233,12 @@ function CheckInOut({getToken, setReturn}) {
                 {checked ? 'Check Out': 'Check In'}
             </button>
 
-            <div className='CenterText'
+            <a className='CenterText'
                 style={{marginTop: '20px'}}
+                href='/reportstolen'
             >
-                {checked ? 'Report Stolen' : ''}
-            </div>
+                Report Stolen
+            </a>
         </div>
     ) : <PromptLogin />
 }

@@ -68,7 +68,8 @@ with con:
         CREATE TABLE users (
             username TEXT PRIMARY KEY NOT NULL,
             email TEXT NOT NULL,
-            password_hash TEXT NOT NULL
+            password_hash TEXT NOT NULL,
+            email_flag INTEGER
         );
         """
     )

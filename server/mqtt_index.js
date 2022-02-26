@@ -82,17 +82,27 @@ client.on('message', function (topic, message) {
     let subtopics = topic.split('/');
     if (subtopics[4] !== 'stolen') return;
 
-    const sql = `SELECT users.email FROM users 
+    const sql = `SELECT users.email, users.username FROM users 
     JOIN current_usage 
     ON users.username=current_usage.username 
     WHERE current_usage.lock_postcode=? 
     AND current_usage.lock_cluster_id=? 
     AND current_usage.lock_id=?;`
 
+    let address = '';
+    let username = '';
+    let rtn_flag = false;
+
     db.get(sql, [subtopics[1], Number(subtopics[2]), Number(subtopics[3])], (err, row) => {
+        if (err) {return console.log(err.message);}
+
         console.log(row);
-        if (row === null) return;
-        const address = row.email;
+        if (row === undefined) {
+            rtn_flag = true;
+            return;
+        }
+        address = row.email;
+        username = row.username;
         if (address === null || address === '') return;
 
         const mailOptions = {
@@ -114,8 +124,19 @@ client.on('message', function (topic, message) {
             }
         });
 
+        const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
+        const sql2 = `UPDATE users SET email_flag=? WHERE username=?;`
+        console.log(`Updating email_flag with timestamp ${timestamp} username ${username}`)
+        db.run(sql2, [timestamp, username], (err) => {
+            if (err) {
+                return console.error(err.message); 
+            }
+        });
     });
-    
+
+    // TODO: insert email_flag (timestamp)
+    if (rtn_flag) return;
+
 })
 
 const moment = require('moment');
@@ -204,16 +225,6 @@ app.post('/usrinfo',(request,response) => {
         }
         response.json(msg);
     })    
-
-    // for testing
-    // const msg = {
-    //     checked: true,
-    //     postcode: 'SW72AZ',
-    //     cluster: 1,
-    //     id: 1,
-    //     bike_sn: 123
-    // }
-    // response.json(msg);
 })
 
 // return user's bike name + sn
@@ -228,16 +239,21 @@ app.post('/usrbike',(request,response) => {
     })    
 })
 
+// return user's email flag
+app.post('/emailflag', (request, response) => {
+    var tmp = request.body.username;
+
+    const sql = `SELECT email_flag FROM users WHERE username=?;`
+    db.get(sql, [tmp], (err, row) => {
+      if (err) { return console.error(err.message); }
+      if (row === null) response.json({email_flag: null});
+      else response.json({email_flag: row.email_flag})
+    });
+})
+
 // user update bike info
 app.post('/bikeupdate', (request,response) => {
     var tmp = request.body;
-
-    // const msg = {
-    //     user: usrname,
-    //     state: 'insert' | 'update' | 'delete',
-    //     original: item, // JSON
-    //     new: item,
-    // }
 
     var sql = '';
     var params = [];
@@ -297,6 +313,50 @@ app.post('/register', (request, response) => {
         if (err) {return console.log(err);}
         response.json("Received");
     })
+})
+
+app.post('/stolenstate', (request, response) => {
+    var tmp = request.body;
+
+    // 0: false alarm (bike in)
+    // 1: check out
+    // 2: true alarm
+    // 3: 
+
+    // const msg = {
+    //      user: // '' if email flag is false
+    //     state: false,
+    //        State: Whether user says it's a true or false alarm
+    //     postcode: data.PostCode,
+    //     cluster: data.Cluster,
+    //     id: data.ID
+    // }
+
+    // TODO: send MQTT
+    const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
+    const message = Buffer.from(JSON.stringify({
+      "timestamp": timestamp, state: tmp.state
+    }));
+
+    // report -> true alarm. checkout -> false alarm.
+    let base_topic = 'ic_embedded_group_4/' + tmp.postcode + '/' + tmp.cluster + '/' + tmp.id;
+    
+    console.log("state of stolenstate", tmp.state)
+    if (tmp.state !== 0) {
+      base_topic+='/report';
+      client.publish(base_topic, message);
+    }
+
+    // remove email flag
+    if (tmp.user !== '') {
+      // we might be reporting anonymously
+      const sql = `UPDATE users SET email_flag=NULL WHERE username=?;`
+      db.run(sql, [tmp.user], (err) =>{
+        if (err) {return console.log(err.message);}
+      });
+    }
+
+    response.json("Processed stolen state");
 })
 
 app.get('/locks',(request,response) => {
