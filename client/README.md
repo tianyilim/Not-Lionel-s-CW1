@@ -64,7 +64,6 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
    - fetch average time per cluster
 2. Password encryption
 3. Add analytics
-4. Report Stolen
 
 
 ## Change Log
@@ -75,3 +74,4 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
 22-Feb-2022 : updated state machine + added login page with simple login authentication + query string in checkin page + bike serial number. <br/>
 22-Feb-2022 : added checkin comfirmation + state machine done with the server. <br/>
 24-Feb-2022 : added profile page with bike infos + fetching availability of lock clusters. <br/>
+26-Feb-2022 : added report stolen page for email alert and anonymous locks. <br/>
