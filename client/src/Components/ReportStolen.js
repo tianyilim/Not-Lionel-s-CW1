@@ -71,8 +71,6 @@ function ReportStolen({getToken, setReturn}) {
             alert("Thank you for confirming");
             navigate('/');
         })
-
-        console.log(msg);
     }
 
     const FalseAlaramStolen = () => {
@@ -145,7 +143,6 @@ function ReportStolen({getToken, setReturn}) {
                 setTmpSerialKeyCluster(response.cluster);
                 setTmpSerialKeyID(response.id);
             } 
-            console.log(response)
         })
 
         fetch('http://'+process.env.REACT_APP_IP+':5000/emailflag',{
