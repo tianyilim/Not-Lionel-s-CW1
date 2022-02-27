@@ -133,7 +133,11 @@ function Map() {
       <div
         style={{height: '40vh'}}
       >
-        <AiOutlineClose className='CloseButton' onClick={ () => setDetails(false) } />
+        <AiOutlineClose className='CloseButton' 
+          onClick={ () => {
+            setDetails(false);
+            setCurrentDay(today.getDay());
+        } } />
 
         {(currentMarker != null) ? 
         <div className='DetailsBox'>
