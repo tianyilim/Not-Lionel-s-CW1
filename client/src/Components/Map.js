@@ -34,6 +34,7 @@ function Map() {
   // Sunday = 0, Monday = 1, Tuesday = 2, ...
   const [currentDay, setCurrentDay] = useState(today.getDay());
   const [allDay, setAllDay] = useState([])
+  const [avgTime, setAvgTime] = useState('')
 
   const [histogram, setHistogram] = useState({
     options: {
@@ -51,7 +52,8 @@ function Map() {
       }
     },
     series: [{
-      data: allDay[currentDay]
+      // data: allDay[currentDay]
+      data: [0,0,0,0,0,0,0,0]
     }]
   })
 
@@ -62,6 +64,39 @@ function Map() {
       element.lock_cluster_id === item.lock_cluster_id
     })
     setCurrentMarker({...item, count: avail ? avail.count : 0});
+
+    // fetch details
+    const msg = {
+      postcode: item.lock_postcode,
+      cluster: item.lock_cluster_id
+    }
+
+    fetch('http://'+process.env.REACT_APP_IP+':5000/lockstat', {
+      method: 'POST',
+      headers: {
+        'Content-type': 'application/json',
+      },
+      body: JSON.stringify(msg),
+    })
+    .then(response => response.json())
+    .then(response => setAllDay(response.data))
+
+    fetch('http://'+process.env.REACT_APP_IP+':5000/avg_time',{
+      method: 'POST',
+      headers: {
+        'Content-type': 'application/json',
+      },
+      body: JSON.stringify(msg),
+    }).then(response => response.json())
+    .then(response => {
+      if (response.h === 0 && response.m === 0 && response.s === 0) setAvgTime('')
+      else if (response.h === 0 && response.m === 0) 
+        setAvgTime(response.s + ' seconds')
+      else if (response.h === 0)
+        setAvgTime(response.m + ' minutes ' + response.s + ' seconds')
+      else if (response.h === 1) setAvgTime('1 hour ' + response.m + ' minutes ' + response.s + ' seconds')
+      else setAvgTime(response.h + ' hours ' + response.m + ' minutes ' + response.s + ' seconds')
+    })
   }
 
   // fetch markers position + name
@@ -87,22 +122,15 @@ function Map() {
     .then(response => {
       setMarkerAvail(response);
     })
-
-    fetch('http://'+process.env.REACT_APP_IP+':5000/lockstat', {
-      method: 'GET',
-      headers: {
-        'Content-type': 'application/json',
-      },
-    })
-    .then(response => response.json())
-    .then(response => {
-      setAllDay(response.data);
-    })
   }
   
   useEffect(() => {
     initial_fetch();
   },[])
+
+  useEffect(() => {
+    setHistogram({...histogram, series: [{data: allDay[currentDay]}]})
+  },[allDay])
 
   return isLoaded ? (
     <div>
@@ -194,6 +222,18 @@ function Map() {
               type='histogram' 
             />
           </div>
+
+          {avgTime !== '' ? <div className='Details'>
+              People typically spend 
+              <b
+                style={{marginLeft: '7px', marginRight:'7px'}}
+              >
+                {avgTime}
+              </b> 
+              here.
+            </div> : 
+            <></>}
+
         </div>
         : <></>
         }

@@ -366,13 +366,13 @@ app.get('/lockavail',(request,response) => {
         FROM current_usage WHERE occupied=0 
         GROUP BY lock_postcode, lock_cluster_id;`
     db.all(sql2, [], (err, rows) => {
-        if (err) { return console.log(err); }
+        if (err) { return console.log(err.message); }
         console.log(rows);
         response.send(rows);
     });
 })
 
-app.get('/lockstat',(request,response) => {
+app.post('/lockstat',(request, response) => {
     // hardcoded stat, in percentage
     const data = [
         [10,40,50,60,70,50,20,40],
@@ -384,5 +384,70 @@ app.get('/lockstat',(request,response) => {
         [0,0,0,0,0,100,0,0]
     ]
 
+    // const msg = {
+    //     postcode: item.lock_postcode,
+    //     cluster: item.lock_cluster_id
+    //   }
+
+    // TODO finish this
+    /*
+    // Figure out occupancy percentage
+    const tmp = request.body;
+    // Assume that we are querying for a specific cluster
+    let total_locks = 0;
+    const total_lock_query = `SELECT num_lock FROM cluster_coordinates WHERE lock_postcode=? AND lock_cluster_id=?;`
+    db.get(total_lock_query, [tmp.postcode, tmp.cluster], (err, row) => {
+        if (err) { return console.log(err.message); }
+        console.log(row);
+        total_locks = row.num_lock;
+    });
+
+    // create an array of size total_locks (occupancy)
+
+    // Get the percentage of locks that are occupied during each time frame
+    // Go through each lock. If it is occupied, we will write occupancy to 1.
+    for (let weekcnt=1; weekcnt<8; weekcnt++){
+        for (let hrsCnt=0; hrsCnt<24; hrsCnt+=3) {
+            const hrsQuery = String(hrsCnt).padStart(2, '0') + ':00:00';
+            const usage_query = `SELECT lock_id, COUNT(*) AS count, in_time, stay_duration 
+                                FROM overall_usage 
+                                WHERE lock_postcode=? AND lock_cluster_id=? 
+                                AND strftime("%w", in_time)=? AND TIME(in_time) > ?
+                                AND remark=0;`
+            db.get(usage_query, [tmp.postcode, tmp.cluster, weekcnt, hrsQuery], (err, row) => {
+                if (err) { return console.log(err.message); }
+            })
+        }
+    }
+    */
+
     response.json({data:data})
 })
+
+app.post('/avg_time', (request, response) => {
+    const tmp = request.body;
+
+    const sql = `SELECT AVG(stay_duration) AS avg FROM overall_usage WHERE lock_postcode=? AND lock_cluster_id=?;`
+
+    db.get(sql, [tmp.postcode, tmp.cluster], (err, row) => {
+        if (err) { return console.log(err.message); }
+        console.log(row);
+        if (row === undefined) {
+            response.json({
+                h: 0,
+                m: 0,
+                s: 0
+            })
+        } else {
+            const msg = {
+                h: Math.floor(row.avg / 3600),
+                m: Math.floor( (row.avg / 60) % 60 ),
+                s: Math.floor(row.avg % 60),
+            }
+            console.log(msg);
+            response.json(msg);
+        }
+    })
+})
+
+

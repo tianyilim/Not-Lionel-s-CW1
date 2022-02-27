@@ -69,10 +69,7 @@ Allow users to register into the system by filling in information such as full n
 The footer is a menu bar that allows user to jump to different page. The lock icon refers to the Check In Page, the home icon refers to the home page and the person icon refers to the register page.
 
 ## TODO
-1. Lock database
-   - fetch average time per cluster
-2. Password encryption
-3. Add analytics
+1. Password encryption
 
 
 ## Change Log
@@ -84,3 +81,4 @@ The footer is a menu bar that allows user to jump to different page. The lock ic
 22-Feb-2022 : added checkin comfirmation + state machine done with the server. <br/>
 24-Feb-2022 : added profile page with bike infos + fetching availability of lock clusters. <br/>
 26-Feb-2022 : added report stolen page for email alert and anonymous locks + added user stat histogram. <br/>
+27-Feb-2022 : added SQL query on user statistics. <br/>
