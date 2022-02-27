@@ -1,4 +1,7 @@
 import sqlite3 as sl
+import json
+import datetime
+from random import randint, randrange
 # Tutorial source: https://towardsdatascience.com/do-you-know-python-has-a-built-in-database-d553989c87bd
 
 #### TEST ONLY ####
@@ -40,6 +43,7 @@ with con:
             lock_postcode TEXT NOT NULL REFERENCES current_usage(lock_postcode),
             lock_cluster_id INTEGER NOT NULL REFERENCES current_usage(lock_cluster_id),
             num_lock INTEGER NOT NULL,
+            avg_usage BLOB,
             PRIMARY KEY(lat, lon)
         );
         """
@@ -146,10 +150,6 @@ data = [
 with con: con.executemany(sql, data)
 
 # Fake some data:
-from random import randint, randrange
-from datetime import datetime, timedelta
-
-# Fake some data:
 sql = '''INSERT INTO overall_usage 
     (lock_postcode, lock_cluster_id, lock_id, username, bike_sn, in_time, stay_duration, remark)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?);
@@ -157,8 +157,8 @@ sql = '''INSERT INTO overall_usage
     
 postcodes = ['SW72AZ', 'W68EL']
 usernames = ['tianyi', 'smith', 'joe']
-d1 = datetime.strptime('1/1/2022 1:30 PM', '%d/%m/%Y %I:%M %p')
-d2 = datetime.strptime('28/2/2022 4:50 AM', '%d/%m/%Y %I:%M %p')
+d1 = datetime.datetime.strptime('3/1/2022 1:30 PM', '%d/%m/%Y %I:%M %p')
+d2 = datetime.datetime.strptime('27/2/2022 4:50 AM', '%d/%m/%Y %I:%M %p')
 
 
 def random_date(start, end):
@@ -169,10 +169,10 @@ def random_date(start, end):
     delta = end - start
     int_delta = (delta.days * 24 * 60 * 60) + delta.seconds
     random_second = randrange(int_delta)
-    date = start + timedelta(seconds=random_second)
-    return datetime.strftime(date, "%Y-%m-%d %H:%M:%S")
+    date = start + datetime.timedelta(seconds=random_second)
+    return datetime.datetime.strftime(date, "%Y-%m-%d %H:%M:%S")
 
-for i in range(100):
+for i in range(1000):
     
     postcode_idx = randint(0,1)
     postcode = postcodes[postcode_idx]
@@ -204,20 +204,111 @@ for i in range(100):
     remark = 0
 
     data = [postcode, cluster_id, lock_id, username, bike_sn, in_time, stay_duration, remark]
-    print("inserting", data)
+    # print("inserting", data)
 
     with con:
         con.execute(sql, data)
 
+# Perform averaging
+all_locks = "SELECT lock_postcode, lock_cluster_id, num_lock FROM cluster_coordinates;"
+with con:
+    data = con.execute(all_locks, [])
+    lock_info = data.fetchall()
 
-# # Query for each bicycle ordered by user 
-# with con:
-#     data = con.execute("""
-#         SELECT USERS.username, BICYCLES.bike_model, BICYCLES.bike_serialnum
-#         FROM 'BICYCLES' 
-#         INNER JOIN 'USERS' ON BICYCLES.username=USERS.username
-#         WHERE USERS.username="joe"
-#         ORDER BY USERS.username;
-#         """)
-#     for row in data:
-#         print(row)
+# get start and end times
+all_times = "SELECT in_time FROM overall_usage ORDER BY in_time;"
+with con:
+    data = con.execute(all_times, [])
+    data = data.fetchall()
+    first_time = data[0][0]
+    last_time = data[-1][0]
+
+# iterate over locks
+for postcode, cluster, num_lock in lock_info:
+    lock_usage = [[None for j in range(8)] for i in range(7)]
+
+    # iterate over weeks
+    dt_idx = datetime.datetime.strptime(first_time, "%Y-%m-%d %H:%M:%S")
+    dt_lim = datetime.datetime.strptime(last_time, "%Y-%m-%d %H:%M:%S")
+    while(dt_idx < dt_lim):
+        # print("Resetting week_usage")
+        week_usage = [[[0 for k in range(num_lock)] for j in range(8)] for i in range(7)]
+        # accumulator for lock usage per week
+
+        # print(postcode, cluster)
+        # print(dt_idx.strftime("%Y-%m-%d %H:%M:%S"))
+        dt_end = dt_idx + datetime.timedelta(days=7)
+
+        # Query database between these two times
+        # Wrapping around days and weeks is too hard. Skipping for now.
+        usage_query = '''
+            SELECT lock_id, in_time, stay_duration FROM overall_usage WHERE
+            in_time > ? AND in_time < ?
+            AND lock_postcode=?
+            AND lock_cluster_id=?
+            AND remark=0
+            ;
+        '''
+        with con:
+            data = con.execute(usage_query, [
+                dt_idx.strftime("%Y-%m-%d %H:%M:%S"),
+                dt_end.strftime("%Y-%m-%d %H:%M:%S"),
+                postcode, cluster
+            ])
+            usage_data = data.fetchall()
+
+        # Iterate over usage entries in each week
+        for lock_id, in_time, stay_duration in usage_data:
+            # print(postcode, cluster, lock_id, in_time, stay_duration)
+            in_time = datetime.datetime.strptime(in_time, "%Y-%m-%d %H:%M:%S")
+            out_time = in_time + datetime.timedelta(seconds=stay_duration)
+            # print("In time:", in_time.strftime("%A %Y-%m-%d %H:%M:%S"))
+            # print("Out time:", out_time.strftime("%Y-%m-%d %H:%M:%S"))
+            while (in_time < out_time):
+                hr_idx = int(in_time.strftime('%H'))//3
+                week_idx = int(in_time.strftime('%w'))    # we index in 3-hour increments
+                # print(week_idx, hr_idx, lock_id)          # Sunday is 0
+                week_usage[week_idx][hr_idx][lock_id-1] = 1
+
+                in_time += datetime.timedelta(hours=3)
+
+        # Week percentage
+        for dayofweek in range(7):
+            for hours in range(8):
+                timeslot_usage = 0
+                for lock in range(num_lock):
+                    # this will be 1 if the lock is in use at that time
+                    timeslot_usage += week_usage[dayofweek][hours][lock]
+                
+                timeslot_usage_percentage = (100*timeslot_usage)/num_lock
+                
+                if lock_usage[dayofweek][hours] == None:
+                    # If not initialised
+                    lock_usage[dayofweek][hours] = int( timeslot_usage_percentage )
+                else:
+                    # take the average
+                    lock_usage[dayofweek][hours] = \
+                        int( (timeslot_usage_percentage + lock_usage[dayofweek][hours]) / 2 )
+
+        dt_idx = dt_end
+
+    # usage dict
+    daysOfWeek = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+    usage_dict = {}
+
+    print(postcode, cluster)
+    for i in range(7):
+        # print(daysOfWeek[i], lock_usage[i])
+        usage_dict[daysOfWeek[i]] = lock_usage[i]
+
+    json_data = json.dumps(usage_dict)
+    print(json_data)
+
+    # serialise json into bytes
+    json_data = bytes(json_data, 'utf-8')
+    update_blob = '''
+        UPDATE cluster_coordinates SET avg_usage=?
+        WHERE lock_postcode=? AND lock_cluster_id=?;
+    '''
+    with con:
+        con.execute(update_blob, [json_data, postcode, cluster])

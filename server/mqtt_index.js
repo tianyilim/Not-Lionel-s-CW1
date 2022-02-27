@@ -374,25 +374,37 @@ app.get('/lockavail',(request,response) => {
 
 app.post('/lockstat',(request, response) => {
     // hardcoded stat, in percentage
-    const data = [
-        [10,40,50,60,70,50,20,40],
-        [10,40,50,60,70,50,20,40],
-        [10,40,50,60,70,50,20,40],
-        [10,40,50,60,70,50,20,40],
-        [0,0,0,0,0,100,0,0],
-        [0,0,0,0,0,100,0,0],
-        [0,0,0,0,0,100,0,0]
-    ]
+    const data = Array(7).fill().map(()=> Array(8).fill(0));
 
     // const msg = {
     //     postcode: item.lock_postcode,
     //     cluster: item.lock_cluster_id
     //   }
 
-    // TODO finish this
-    /*
-    // Figure out occupancy percentage
+    // query for occupancy percentage
     const tmp = request.body;
+
+    const usage_query = `SELECT avg_usage FROM cluster_coordinates WHERE lock_postcode=? AND lock_cluster_id=?;`
+    db.get(usage_query, [tmp.postcode, tmp.cluster], (err, row) => {
+        if (err) { return console.log(err.message); }
+
+        // deserialise json object
+        let usage = JSON.parse(row.avg_usage.toString());
+        console.log(usage);
+
+        data[0] = usage.sun;
+        data[1] = usage.mon;
+        data[2] = usage.tue;
+        data[3] = usage.wed;
+        data[4] = usage.thu;
+        data[5] = usage.fri;
+        data[6] = usage.sat;
+
+        response.json({data:data});
+    })
+
+
+    /*
     // Assume that we are querying for a specific cluster
     let total_locks = 0;
     const total_lock_query = `SELECT num_lock FROM cluster_coordinates WHERE lock_postcode=? AND lock_cluster_id=?;`
@@ -402,26 +414,34 @@ app.post('/lockstat',(request, response) => {
         total_locks = row.num_lock;
     });
 
-    // create an array of size total_locks (occupancy)
-
+    // occupancy for the week (as a percentage)
+    let occupancy_week = Array(7).fill().map(()=> Array(8).fill(0));
+    
     // Get the percentage of locks that are occupied during each time frame
     // Go through each lock. If it is occupied, we will write occupancy to 1.
     for (let weekcnt=1; weekcnt<8; weekcnt++){
+        // create an array of size total_locks (occupancy)
+        // 8 because that's the number of timeslots we have in a day
+        let occupancy = Array(8).fill().map(() => Array(columns).fill(0));
+
         for (let hrsCnt=0; hrsCnt<24; hrsCnt+=3) {
             const hrsQuery = String(hrsCnt).padStart(2, '0') + ':00:00';
-            const usage_query = `SELECT lock_id, COUNT(*) AS count, in_time, stay_duration 
+            const usage_query = `SELECT lock_id, in_time, stay_duration 
                                 FROM overall_usage 
                                 WHERE lock_postcode=? AND lock_cluster_id=? 
                                 AND strftime("%w", in_time)=? AND TIME(in_time) > ?
                                 AND remark=0;`
-            db.get(usage_query, [tmp.postcode, tmp.cluster, weekcnt, hrsQuery], (err, row) => {
+            db.all(usage_query, [tmp.postcode, tmp.cluster, weekcnt, hrsQuery], (err, rows) => {
                 if (err) { return console.log(err.message); }
+                rows.forEach(element => {
+                    const hrIdx = Math.floor(hrsCnt/3);    // Convert hrsCnt into array index
+                    
+
+                });
             })
         }
     }
     */
-
-    response.json({data:data})
 })
 
 app.post('/avg_time', (request, response) => {

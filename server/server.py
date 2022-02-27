@@ -6,7 +6,7 @@ import paho.mqtt.client as mqtt
 import ssl
 from socket import gethostname
 from time import sleep
-from datetime import datetime, timedelta
+import datetime
 import json
 import sqlite3 as sl
 import os
@@ -78,12 +78,12 @@ def on_message(client, userdata, message):
     logging.debug(f"Fetched {state} from DB")
 
     # current time is a useful thing
-    dt_string = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    dt_string = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # stay duration is also a useful thing
     if state['lock_time'] is not None:
-        stay_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
-        stay_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
+        stay_start = datetime.datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
+        stay_end = datetime.datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
         stay_duration = stay_end - stay_start
         stay_duration = int(stay_duration.total_seconds())
     else: 
@@ -196,8 +196,8 @@ def on_message(client, userdata, message):
             # State C, anonymous user has inserted a bike
 
             # check timestamps if they match
-            time_start = datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
-            time_end = datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
+            time_start = datetime.datetime.strptime(state['lock_time'], "%Y-%m-%d %H:%M:%S")
+            time_end = datetime.datetime.strptime(payload['timestamp'], "%Y-%m-%d %H:%M:%S")
             time_duration = time_end - time_start
 
             # define check in grace period as 5 minutes
@@ -500,6 +500,77 @@ def send_checkin_response(subtopics, status, message: str=''):
     msg = bytes(json.dumps(msg), 'utf-8')
     client.publish(response_topic, msg)
 
+def update_usage_average_values():
+    '''Call this function to update averages every week'''
+    con = sl.connect(DB_PATH)
+
+    # Get current usage stats
+    all_locks = "SELECT lock_postcode, lock_cluster_id, num_lock, avg_usage FROM cluster_coordinates;"
+    with con:
+        data = con.execute(all_locks, [])
+        lock_info = data.fetchall()
+    
+    # Iterate over locks
+    for postcode, cluster, num_lock, avg_usage in lock_info:
+        
+        # Go through the past week's usage
+        week_usage = [[[0 for k in range(num_lock)] for j in range(8)] for i in range(7)]
+        time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        time_oneweekago = time_now - datetime.timedelta(days=7)
+        usage_query = '''
+            SELECT lock_id, in_time, stay_duration FROM overall_usage WHERE
+            in_time > ? AND in_time < ?
+            AND lock_postcode=?
+            AND lock_cluster_id=?
+            AND remark=0
+            ;
+        '''
+        with con:
+            data = con.execute(usage_query, [
+                time_oneweekago.strftime("%Y-%m-%d %H:%M:%S"),
+                time_now,
+                postcode, cluster
+            ])
+            usage_data = data.fetchall()
+
+        # Iterate over usage entries in each week
+        for lock_id, in_time, stay_duration in usage_data:
+            in_time = datetime.datetime.strptime(in_time, "%Y-%m-%d %H:%M:%S")
+            out_time = in_time + datetime.timedelta(seconds=stay_duration)
+            while (in_time < out_time):
+                hr_idx = int(in_time.strftime('%H'))//3
+                week_idx = int(in_time.strftime('%w'))    # we index in 3-hour increments
+                week_usage[week_idx][hr_idx][lock_id-1] = 1
+
+                in_time += datetime.timedelta(hours=3)
+        
+        # Add to avg_usage
+        usage_dict = json.loads( avg_usage.decode("utf-8") )
+        daysOfWeek = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+        for dayOfWeek in range(7):
+            for hours in range(8):
+                timeslot_usage = 0
+                for lock in range(num_lock):
+                    timeslot_usage += week_usage[dayOfWeek][hours][lock]
+                
+                timeslot_usage_percentage = int( (100*timeslot_usage)/num_lock )
+                # Perform average
+                usage_dict[daysOfWeek[dayOfWeek]][hours] = \
+                    int( (usage_dict[daysOfWeek[dayOfWeek]][hours] + timeslot_usage_percentage)/2 )
+
+        # update lock info
+        json_data = json.dumps(usage_dict)
+        logging.info(f"Updated {postcode} {cluster} averages with {json_data}")
+
+        # serialise json into bytes
+        json_data = bytes(json_data, 'utf-8')
+        update_blob = '''
+            UPDATE cluster_coordinates SET avg_usage=?
+            WHERE lock_postcode=? AND lock_cluster_id=?;
+        '''
+        with con:
+            con.execute(update_blob, [json_data, postcode, cluster])
+
 # Main code
 if __name__ == "__main__":
     # Start logger
@@ -539,13 +610,9 @@ if __name__ == "__main__":
         sleep(2)
 
     while conn_flag:
-        pass
+        sleep(60*60*24*7) # sleep 1 week
+        update_usage_average_values()
 
     # ! Insert conditions to disconnect / stop looping here.
     # client.loop_stop()
     # client.disconnect()
-
-
-'''
-
-'''
