@@ -127,7 +127,7 @@ with con:
 # For creating new users
 sql = "INSERT INTO users (username, email, password_hash) values(?, ?, ?);"
 data = [
-    ('abc', 'mm.aderation@gmail.com', 123),
+    ('tianyi', 'mm.aderation@gmail.com', 123),
     ('frank', 'iamattestvalue@frank.com', 456),
     ('smith', 'iamattestvalue@smith.com', 789)
 ]
@@ -137,13 +137,78 @@ with con:
 
 sql = 'INSERT INTO bicycles (bike_name, bike_sn, username) values(?, ?, ?);'
 data = [
-    ('carrera subway', 123, 'abc'),
-    ('specialized aethos', 345, 'abc'),
+    ('giant tcr', 123, 'tianyi'),
+    ('specialized aethos', 345, 'tianyi'),
     ('canyon aeroad', 99, 'smith'),
     ('triban 500', 464, 'joe'),
 ]
 
 with con: con.executemany(sql, data)
+
+# Fake some data:
+from random import randint, randrange
+from datetime import datetime, timedelta
+
+# Fake some data:
+sql = '''INSERT INTO overall_usage 
+    (lock_postcode, lock_cluster_id, lock_id, username, bike_sn, in_time, stay_duration, remark)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+    '''
+    
+postcodes = ['SW72AZ', 'W68EL']
+usernames = ['tianyi', 'smith', 'joe']
+d1 = datetime.strptime('1/1/2022 1:30 PM', '%d/%m/%Y %I:%M %p')
+d2 = datetime.strptime('28/2/2022 4:50 AM', '%d/%m/%Y %I:%M %p')
+
+
+def random_date(start, end):
+    """
+    This function will return a random datetime between two datetime 
+    objects.
+    """
+    delta = end - start
+    int_delta = (delta.days * 24 * 60 * 60) + delta.seconds
+    random_second = randrange(int_delta)
+    date = start + timedelta(seconds=random_second)
+    return datetime.strftime(date, "%Y-%m-%d %H:%M:%S")
+
+for i in range(100):
+    
+    postcode_idx = randint(0,1)
+    postcode = postcodes[postcode_idx]
+    if postcode_idx == 0:
+        cluster_id = randint(1,2)
+        if cluster_id == 1:
+            lock_id = randint(1, 10)
+        else:
+            lock_id = randint(1, 7)
+    else:
+        cluster_id = 1
+        lock_id = randint(1,5)
+    
+
+    username_idx = randint(0,2)
+    username = usernames[username_idx]
+    if username_idx==0:
+        bike_sn = randint(0,1)
+        if bike_sn == 0: bike_sn = 123
+        else: bike_sn = 345
+    elif username_idx==1:
+        bike_sn = 99
+    else: 
+        bike_sn = 464
+
+    in_time = random_date(d1, d2)
+    stay_duration = randint(300, 36000) # 5 mins to 10 hours
+
+    remark = 0
+
+    data = [postcode, cluster_id, lock_id, username, bike_sn, in_time, stay_duration, remark]
+    print("inserting", data)
+
+    with con:
+        con.execute(sql, data)
+
 
 # # Query for each bicycle ordered by user 
 # with con:
