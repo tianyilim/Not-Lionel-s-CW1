@@ -43,7 +43,6 @@ client.on('connect', function () {
 
 // Setting up Database
 const sqlite3 = require('sqlite3').verbose();
-// Qn: When do we need to close the database? is it on a per-query basis or can we avoid closing it?
 let db = new sqlite3.Database("../db/es_cw1.db", sqlite3.OPEN_READWRITE, (err) => {
     if (err) { console.error(err.message); }
     console.log('JS Server connected to database.');
@@ -58,7 +57,7 @@ const transporter = nodemailer.createTransport({
       pass: 'not_lionel_s'
     }
 });
-const ip_address = 'localhost'
+const ip_address = '35.178.122.34'
 
 // hacky way to open HTTP channel while waiting for MQTT message
 var desired_msg = '';
@@ -68,7 +67,6 @@ client.on('message', function (topic, message) {
     let payload = JSON.parse(message.toString());
 
     if (resp !== null && desired_msg === topic) {
-        console.log("Received checkin payload", payload);
         resp.json({state: payload.status, msg: payload.message});
 
         // reset variables
@@ -96,7 +94,6 @@ client.on('message', function (topic, message) {
     db.get(sql, [subtopics[1], Number(subtopics[2]), Number(subtopics[3])], (err, row) => {
         if (err) {return console.log(err.message);}
 
-        console.log(row);
         if (row === undefined) {
             rtn_flag = true;
             return;
@@ -112,21 +109,18 @@ client.on('message', function (topic, message) {
             html: `<p>
                     We have detected unusual behaviour at your bike. 
                     If this was you, please log-in into your account to review your activity <br/> <br/>
-                    <a href="http://` + ip_address + `:3000/profile">Review Activity </a>
+                    <a href="http://` + ip_address + `:3000/reportstolen">Review Activity </a>
                 </p>`
         }
     
         transporter.sendMail(mailOptions, function(error, info){
             if (error) {
               console.log(error);
-            } else {
-              console.log('Email sent: ' + info.response);
-            }
+            } 
         });
 
         const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
         const sql2 = `UPDATE users SET email_flag=? WHERE username=?;`
-        console.log(`Updating email_flag with timestamp ${timestamp} username ${username}`)
         db.run(sql2, [timestamp, username], (err) => {
             if (err) {
                 return console.error(err.message); 
@@ -134,7 +128,6 @@ client.on('message', function (topic, message) {
         });
     });
 
-    // TODO: insert email_flag (timestamp)
     if (rtn_flag) return;
 
 })
@@ -184,7 +177,6 @@ app.post('/checkin',(request,response) => {
     desired_msg = "ic_embedded_group_4/" + tmp.lock_postcode + "/" + tmp.lock_cluster_id.toString() + "/" + tmp.lock_id.toString() + "/checkinresponse";
   
     // should there be some timeout thing?
-    // response.json({state: true});  
 })
 
 // listen for check out
@@ -203,7 +195,6 @@ app.post('/usrinfo',(request,response) => {
 
     db.all(sql, [tmp], (err,row) => {
         if (err) throw err; 
-        // console.log(row);
         let msg = {};
         if (row.length) {
             let tmp = row[0];
@@ -321,7 +312,6 @@ app.post('/stolenstate', (request, response) => {
     // 0: false alarm (bike in)
     // 1: check out
     // 2: true alarm
-    // 3: 
 
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     const message = Buffer.from(JSON.stringify({
@@ -353,7 +343,6 @@ app.get('/locks',(request,response) => {
     const sql1 = `SELECT * FROM cluster_coordinates;`
     db.all(sql1, [], (err, rows) => {
         if (err) { return console.log(err); }
-        console.log(rows);
         response.send(rows);
     });
     
@@ -367,7 +356,6 @@ app.get('/lockavail',(request,response) => {
         GROUP BY lock_postcode, lock_cluster_id;`
     db.all(sql2, [], (err, rows) => {
         if (err) { return console.log(err.message); }
-        console.log(rows);
         response.send(rows);
     });
 })
@@ -375,11 +363,6 @@ app.get('/lockavail',(request,response) => {
 app.post('/lockstat',(request, response) => {
     // hardcoded stat, in percentage
     const data = Array(7).fill().map(()=> Array(8).fill(0));
-
-    // const msg = {
-    //     postcode: item.lock_postcode,
-    //     cluster: item.lock_cluster_id
-    //   }
 
     // query for occupancy percentage
     const tmp = request.body;
@@ -390,7 +373,6 @@ app.post('/lockstat',(request, response) => {
 
         // deserialise json object
         let usage = JSON.parse(row.avg_usage.toString());
-        console.log(usage);
 
         data[0] = usage.sun;
         data[1] = usage.mon;
@@ -402,46 +384,6 @@ app.post('/lockstat',(request, response) => {
 
         response.json({data:data});
     })
-
-
-    /*
-    // Assume that we are querying for a specific cluster
-    let total_locks = 0;
-    const total_lock_query = `SELECT num_lock FROM cluster_coordinates WHERE lock_postcode=? AND lock_cluster_id=?;`
-    db.get(total_lock_query, [tmp.postcode, tmp.cluster], (err, row) => {
-        if (err) { return console.log(err.message); }
-        console.log(row);
-        total_locks = row.num_lock;
-    });
-
-    // occupancy for the week (as a percentage)
-    let occupancy_week = Array(7).fill().map(()=> Array(8).fill(0));
-    
-    // Get the percentage of locks that are occupied during each time frame
-    // Go through each lock. If it is occupied, we will write occupancy to 1.
-    for (let weekcnt=1; weekcnt<8; weekcnt++){
-        // create an array of size total_locks (occupancy)
-        // 8 because that's the number of timeslots we have in a day
-        let occupancy = Array(8).fill().map(() => Array(columns).fill(0));
-
-        for (let hrsCnt=0; hrsCnt<24; hrsCnt+=3) {
-            const hrsQuery = String(hrsCnt).padStart(2, '0') + ':00:00';
-            const usage_query = `SELECT lock_id, in_time, stay_duration 
-                                FROM overall_usage 
-                                WHERE lock_postcode=? AND lock_cluster_id=? 
-                                AND strftime("%w", in_time)=? AND TIME(in_time) > ?
-                                AND remark=0;`
-            db.all(usage_query, [tmp.postcode, tmp.cluster, weekcnt, hrsQuery], (err, rows) => {
-                if (err) { return console.log(err.message); }
-                rows.forEach(element => {
-                    const hrIdx = Math.floor(hrsCnt/3);    // Convert hrsCnt into array index
-                    
-
-                });
-            })
-        }
-    }
-    */
 })
 
 app.post('/avg_time', (request, response) => {
@@ -451,7 +393,6 @@ app.post('/avg_time', (request, response) => {
 
     db.get(sql, [tmp.postcode, tmp.cluster], (err, row) => {
         if (err) { return console.log(err.message); }
-        console.log(row);
         if (row === undefined) {
             response.json({
                 h: 0,
@@ -464,7 +405,6 @@ app.post('/avg_time', (request, response) => {
                 m: Math.floor( (row.avg / 60) % 60 ),
                 s: Math.floor(row.avg % 60),
             }
-            console.log(msg);
             response.json(msg);
         }
     })

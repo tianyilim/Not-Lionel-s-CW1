@@ -9,11 +9,6 @@ function Profile({getToken, setReturn, removeToken}) {
         setReturn('/profile');
     }
 
-    const [info, setInfo] = useState({
-        name: 'name',
-        username: 'username',
-        email: 'email address'
-    })
     const [bicycle, setBicycle] = useState([]);
 
     const SignOut = () => {

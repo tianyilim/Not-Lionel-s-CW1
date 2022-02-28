@@ -1,6 +1,5 @@
 import './App.css';
 
-import { useState } from 'react';
 import { BrowserRouter, Route, Routes , Link } from 'react-router-dom'
 import { BsFillHouseDoorFill,BsFillPersonFill,BsFillLockFill } from 'react-icons/bs'
 import { IconContext } from 'react-icons';
@@ -11,7 +10,6 @@ import RegisterPage from './Components/RegisterPage.js';
 import LoginPage from './Components/LoginPage.js';
 import Profile from './Components/Profile.js';
 import ReportStolen from './Components/ReportStolen.js';
-import HeatMap from './Components/HeatMap.js';
 
 function App() {
   const setToken = (username) => {
@@ -67,7 +65,6 @@ function App() {
             <Route exact path="/profile" element={<Profile getToken={getToken} setReturn={setReturn} removeToken={removeToken} />} />
             <Route exact path="/login" element={<LoginPage setToken={setToken} getReturn={getReturn} />} />
             <Route exact path="/reportstolen" element={<ReportStolen getToken={getToken} setReturn={setReturn} />} />
-            <Route exact path="/heatmap" element={<HeatMap />} />
           </Routes >
         </div>
         

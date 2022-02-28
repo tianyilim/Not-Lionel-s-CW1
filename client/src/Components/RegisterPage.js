@@ -1,8 +1,5 @@
 import { useState, React } from 'react'
 import { useNavigate } from 'react-router-dom';
-import sha256 from 'crypto-js/sha256';
-import hmacSHA512 from 'crypto-js/hmac-sha512';
-import Base64 from 'crypto-js/enc-base64';
 
 function RegisterPage() {
     const navigate = useNavigate();
@@ -44,9 +41,6 @@ function RegisterPage() {
             body: JSON.stringify(msg),
         }).then(navigate('/login'))
     }
-
-    // const message = sha256("123" + "Message")
-    // console.log(Base64.stringify(hmacSHA512(message,"Key")))
 
     return(
         <div>

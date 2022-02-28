@@ -47,12 +47,14 @@ function Map() {
       yaxis: {
         max: 100,
       },
+      dataLabels: {
+        enabled: false,
+      },
       tooltip: {
         enabled: false
       }
     },
     series: [{
-      // data: allDay[currentDay]
       data: [0,0,0,0,0,0,0,0]
     }]
   })
@@ -128,6 +130,7 @@ function Map() {
     initial_fetch();
   },[])
 
+  // update histogram data after fetch
   useEffect(() => {
     setHistogram({...histogram, series: [{data: allDay[currentDay]}]})
   },[allDay])
@@ -149,7 +152,10 @@ function Map() {
             return (
               <Marker key={index} position={location} 
                 icon={avail ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png" : "https://maps.google.com/mapfiles/ms/icons/red-dot.png"}
-                onClick={ () => onClickMarker(item) }
+                onClick={ () => {
+                  onClickMarker(item);
+                  setCurrentDay(today.getDay());
+                } }
               />
             )
           })}
