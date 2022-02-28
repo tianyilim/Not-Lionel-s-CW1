@@ -45,7 +45,7 @@ class MessageHandler:
         '''MQTT Client to start receieving on the channel'''
         self.client.loop_stop()
 
-    def sendMessage(self, bikein):
+    def sendMessage(self, bikein, stolen=False):
         '''Sends message to server on `BASE_TOPIC/stolen` with a timestamp
         The server assumes any message on `/stolen` indicates that the lock 
         has detected something stolen.
@@ -57,12 +57,15 @@ class MessageHandler:
         msg = { "timestamp"  : timestamp } # dump json object into string
         msg = bytes(json.dumps(msg), 'utf-8') 
 
-        if bikein:
-            MSG_INFO = self.client.publish(BASE_TOPIC+'/in', msg)
-            print(mqtt.error_string(MSG_INFO.rc))
-        else: 
-            MSG_INFO = self.client.publish(BASE_TOPIC+'/out', msg)
-            print(mqtt.error_string(MSG_INFO.rc))
+        if stolen:
+            MSG_INFO = self.client.publish(BASE_TOPIC+'/stolen', msg)
+        else:
+            if bikein:
+                MSG_INFO = self.client.publish(BASE_TOPIC+'/in', msg)
+            else: 
+                MSG_INFO = self.client.publish(BASE_TOPIC+'/out', msg)
+                
+        print(mqtt.error_string(MSG_INFO.rc))
     
     def sendTelemetry(self, payload):
         '''Sends regular accelerometer data to the server for anomaly detection purposes.

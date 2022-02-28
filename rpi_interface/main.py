@@ -54,16 +54,17 @@ class monitor:
         if median(self.measurements) > self.nobike_threshold:
           print("Bike removed! Distance: ", median(self.measurements), "cm")
           # Bike removed
-          self.mh.sendMessage(False) # Bike removed
           if self.mh.getAlarmStatus():
               # Sound alarm
               self.mode = 2
               self.buzzer.play('alarm')
               self.led.startAlarm()
+              self.mh.sendMessage(None, stolen=True)
           else:
               self.mode = 0
               self.buzzer.play('removed')
               self.led.noBike()
+              self.mh.sendMessage(False) # Bike removed
 
     '''
     mode 2
