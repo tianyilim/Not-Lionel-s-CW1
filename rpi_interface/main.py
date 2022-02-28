@@ -7,6 +7,7 @@ from theftdetector import TheftDetector
 from statistics import median
 
 from time import sleep
+import time
 
 class monitor:
 
@@ -34,6 +35,9 @@ class monitor:
         # Turn on the LED
         self.led.noBike()
 
+        # Timing variable
+        self.time = time.time()
+
     '''
     mode 0
     Check if measured distance is smaller than the threshold for a bike to be inserted
@@ -57,6 +61,7 @@ class monitor:
           if self.mh.getAlarmStatus():
               # Sound alarm
               self.mode = 2
+              self.time = time.time()
               self.buzzer.play('alarm')
               self.led.startAlarm()
               self.mh.sendMessage(None, stolen=True)
@@ -71,7 +76,7 @@ class monitor:
     Sounding alarm till stopped
     '''
     def soundAlarm(self):
-          if not self.mh.getAlarmStatus():
+          if not self.mh.getAlarmStatus() or time.time() - self.time > 20:
               self.buzzer.stop()
               self.mode = 0
               self.led.noBike()
