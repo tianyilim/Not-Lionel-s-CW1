@@ -237,7 +237,7 @@ app.post('/emailflag', (request, response) => {
     const sql = `SELECT email_flag FROM users WHERE username=?;`
     db.get(sql, [tmp], (err, row) => {
       if (err) { return console.error(err.message); }
-      if (row === null) response.json({email_flag: null});
+      if (row === undefined || row === null) response.json({email_flag: null});
       else response.json({email_flag: row.email_flag})
     });
 })
