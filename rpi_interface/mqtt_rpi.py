@@ -15,7 +15,7 @@ LOCK_CLUSTER_ID = 1
 LOCK_ID = 1
 CLIENT_ID = "{}:{}_{}_{}".format(gethostname(), LOCK_POSTCODE, LOCK_CLUSTER_ID, LOCK_ID)
 BASE_TOPIC = "ic_embedded_group_4/{}/{}/{}".format(LOCK_POSTCODE, LOCK_CLUSTER_ID, LOCK_ID)
-BROKER_IP = "35.178.122.34"         # AWS IP
+BROKER_IP = "35.178.20.204"         # AWS IP
 BROKER_PORT = 8883                  # MQTT Secure Port
 
 # TODO periodically sync time with online, so that timestamps are accurate!
