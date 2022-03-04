@@ -25,8 +25,8 @@ SUBSCRIBED_TOPICS = ['in', 'out', 'checkin', 'checkout', 'stolen', 'report', 'te
 DB_PATH = "../db/es_cw1.db"
 
 # used for grace period checking in between
-# USER_CHECKIN_GRACE = 5
-USER_CHECKIN_GRACE = 0.1 # Testing
+USER_CHECKIN_GRACE = 1
+# USER_CHECKIN_GRACE = 0.1 # Testing
 LOCK_MUTEX = {}
 
 # callbacks
