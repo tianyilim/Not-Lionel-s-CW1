@@ -5,9 +5,9 @@ permalink: /comingsoon/
 include: true
 ---
 
-# Social Media Integration
+# Messaging Integration
 
-
+Tired of scanning a QR code and logging in every time you dismount? Simply send a message via WhatsApp / Telegram / SMS telling us your location and we'll automatically check in your bike.
 
 # Anomaly Detection
 
