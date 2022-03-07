@@ -2,7 +2,7 @@
 layout: page
 title: About
 permalink: /about/
-include: true
+include: false
 ---
 
 The {{ site.lockBrand }} is a smart IoT bike lock for securing your bicycle. It was designed by:
