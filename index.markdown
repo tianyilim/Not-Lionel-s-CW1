@@ -18,10 +18,16 @@ Like a watchful eye that never blinks, our {{ site.lockBrand }} constantly stare
     <iframe width="560" height="315" src="https://www.youtube.com/embed/8JGS0eio5z4" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 </div>
 
+<br><br>
 
-Don't let thieves steal your bike with our {{ site.lockBrand }}. Order your {{ site.lockBrand }} today!
+<p>{{ site.lockBrand }} uses ultrasound and accelerometer sensors to keep a track of your bike. Allowing you to keep your bike safe, and track the availability of bike parking. </p>
 
 ![Mounted Lionel's Lock](/assets/img/lock-mounted.png)
 
+<br><br>
+
+<p>{{ site.lockBrand }} is a thief's worst nightmare, and actively deters bike thefts. </p>
+
 ![Thief stealing bike](/assets/img/bike-theft.png)
 
+Don't let thieves steal your bike with our {{ site.lockBrand }}. Order your {{ site.lockBrand }} today!
