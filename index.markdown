@@ -13,3 +13,10 @@ Like a watchful eye that never blinks, our {{ site.lockBrand }} constantly stare
 
 ## Marketing video
 <iframe width="560" height="315" src="https://www.youtube.com/embed/8JGS0eio5z4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+Don't let thieves steal your bike with our {{ site.lockBrand }}. Order your {{ site.lockBrand }} today!
+
+![Mounted Lionel's Lock](/assets/img/lock-mounted.png)
+
+![Thief stealing bike](/assets/img/bike-theft.png)
+

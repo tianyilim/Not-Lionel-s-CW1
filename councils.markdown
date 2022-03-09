@@ -23,3 +23,5 @@ With many of our {{ site.lockBrand }}s installed on your premises you would have
 
 ![Graph of bicycle usage per hour](/assets/img/analytics2.png)
 
+![Heatmap of bike usage](/assets/img/heatmap.png)
+

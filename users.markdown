@@ -15,6 +15,8 @@ If someone tries to steal your bike, we'll sound an alarm and alert you immediat
 
 ![Bike lock with flashing alarm light](/assets/videos/alarm-light.gif)
 
+![Security alert within app](/assets/img/security-alert.png)
+
 # Map Finder
 
 Need help finding a free parking spot? Our in-app map will show you to the nearest {{ site.lockBrand }}.
