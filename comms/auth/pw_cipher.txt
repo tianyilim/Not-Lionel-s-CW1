@@ -1,1 +1,1 @@
-user:$7$101$xoqQHBFW76Yl4U/J$SXpSkDmN21010bQmqyxHsdAoGQaxvq64ovglkCh9OfeC+SfqeaJJV5Kv0kj5H2Iy6Z/buaFIQ5IumNQ6A4xafQ==
+user: Your Password Cipher should be here. Follow the README to generate your own.
